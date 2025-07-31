@@ -33,22 +33,22 @@ This document tracks the implementation progress of the permission service packa
 
 ## Phase 4: Core Permission Service
 
-- [ ] Create `src/services/permissionService.ts`
-  - [ ] Set up class with optional cache service constructor parameter
-  - [ ] Implement `loadPermissions(matrix, version)` method
-  - [ ] Implement role hierarchy logic
-  - [ ] Implement `getUserSiteRole(user, siteId)` method
-  - [ ] Implement `hasMinimumRole(userRole, requiredRole)` method
-  - [ ] Implement `canPerformSiteAction(user, siteId, resource, action)` method
-  - [ ] Implement `canPerformGlobalAction(user, resource, action)` method
-  - [ ] Implement `getSitesWithMinRole(user, minRole)` method
-  - [ ] Implement `getAccessibleResources(user, siteId, action)` method
-  - [ ] Implement `bulkPermissionCheck(user, siteId, checks)` method
-  - [ ] Implement `getRolePermissions(role)` method
-  - [ ] Implement `roleHasPermission(role, resource, action)` method
-  - [ ] Add caching integration
-  - [ ] Add super admin special handling
-  - [ ] Add error handling and logging
+- [x] Create `src/services/permissionService.ts`
+  - [x] Set up class with optional cache service constructor parameter
+  - [x] Implement `loadPermissions(matrix, version)` method
+  - [x] Implement role hierarchy logic
+  - [x] Implement `getUserSiteRole(user, siteId)` method
+  - [x] Implement `hasMinimumRole(userRole, requiredRole)` method
+  - [x] Implement `canPerformSiteAction(user, siteId, resource, action)` method
+  - [x] Implement `canPerformGlobalAction(user, resource, action)` method
+  - [x] Implement `getSitesWithMinRole(user, minRole)` method
+  - [x] Implement `getAccessibleResources(user, siteId, action)` method
+  - [x] Implement `bulkPermissionCheck(user, siteId, checks)` method
+  - [x] Implement `getRolePermissions(role)` method
+  - [x] Implement `roleHasPermission(role, resource, action)` method
+  - [x] Add caching integration
+  - [x] Add super admin special handling
+  - [x] Add error handling and logging
 
 ## Phase 5: Package Exports
 
