@@ -1,0 +1,39 @@
+{
+  "name": "permissions-service",
+  "version": "1.0.0",
+  "description": "Shared permissions service for front-end and back-end",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "permissions",
+    "typescript",
+    "firebase"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "firebase": "^12.0.0"
+  }
+}
