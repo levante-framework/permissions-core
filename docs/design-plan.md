@@ -36,6 +36,7 @@ export interface PermissionMatrix {
 **Singleton pattern with caching capabilities**
 
 #### Core Methods:
+- `constructor(cacheService?)` - Accept optional cache service instance
 - `loadPermissions(matrix, version)` - Load and validate permission matrix
 - `canPerformSiteAction(user, siteId, resource, action)` - Main permission check
 - `canPerformGlobalAction(user, resource, action)` - Super admin only
@@ -47,7 +48,7 @@ export interface PermissionMatrix {
 
 ### Caching Layer (`src/services/cacheService.ts`)
 
-**Internal implementation detail - not exported**
+**Exported for external instantiation**
 
 - In-memory cache with TTL (1 hour for backend, session-based for frontend)
 - Cache key: `${userId}-${siteId}` for permission results
@@ -56,6 +57,8 @@ export interface PermissionMatrix {
   - `set(key, value, ttl?)` - Store with optional TTL
   - `clear()` - Clear all cache
   - `clearUser(userId)` - Clear specific user's cache
+- **Cloud Functions**: Instantiate at module level for container persistence
+- **Frontend**: Instantiate in application for session-based caching
 
 ### Version Compatibility (`src/utils/versionHandler.ts`)
 
@@ -154,11 +157,11 @@ const isSuperAdmin = user.roles.some(r => r.role === 'super_admin');
 
 ```typescript
 export * from './types/permissions.js';
-export { permissionService } from './services/permissionService.js';
 export { PermissionService } from './services/permissionService.js';
+export { CacheService } from './services/cacheService.js';
 ```
 
-**Note**: Cache service is internal and not exported.
+**Note**: No singleton instances exported - consumers instantiate as needed.
 
 ## Integration Points
 
@@ -167,11 +170,30 @@ export { PermissionService } from './services/permissionService.js';
 - `usePermissions()` composable for reactive permission checks
 - Real-time listener on permissions document
 - Site context maintained across navigation
+- Cache service instantiated in application for session-based caching
+
+```typescript
+// In application setup
+const cache = new CacheService();
+const permissions = new PermissionService(cache);
+```
 
 ### Backend (Cloud Functions)
 - Shared permission service with frontend
 - Same permission checking logic
-- TTL-based caching for performance
+- Cache service instantiated at module level for container persistence
+- Permission service instantiated per request (stateless)
+
+```typescript
+// At module level (outside handler)
+const cache = new CacheService();
+
+// Inside handler
+export const myFunction = async (req, res) => {
+  const permissions = new PermissionService(cache);
+  // Use permissions service
+}
+```
 
 ## Testing Strategy
 

@@ -12,16 +12,17 @@ This document tracks the implementation progress of the permission service packa
   - [x] Define cache-related types
   - [x] Define bulk operation types
 
-## Phase 2: Cache Service (Internal)
+## Phase 2: Cache Service (Exported)
 
-- [ ] Create `src/services/cacheService.ts`
-  - [ ] Implement in-memory cache with TTL support
-  - [ ] Add `get(key)` method
-  - [ ] Add `set(key, value, ttl?)` method
-  - [ ] Add `clear()` method
-  - [ ] Add `clearUser(userId)` method
-  - [ ] Add cache key generation utilities
-  - [ ] Add TTL cleanup mechanism
+- [x] Create `src/services/cacheService.ts`
+  - [x] Implement in-memory cache with TTL support
+  - [x] Add `get(key)` method
+  - [x] Add `set(key, value, ttl?)` method
+  - [x] Add `clear()` method
+  - [x] Add `clearUser(userId)` method
+  - [x] Add cache key generation utilities
+  - [x] Add TTL cleanup mechanism
+  - [x] Remove singleton export (export class only)
 
 ## Phase 3: Version Handler Utility
 
@@ -33,7 +34,7 @@ This document tracks the implementation progress of the permission service packa
 ## Phase 4: Core Permission Service
 
 - [ ] Create `src/services/permissionService.ts`
-  - [ ] Set up singleton pattern
+  - [ ] Set up class with optional cache service constructor parameter
   - [ ] Implement `loadPermissions(matrix, version)` method
   - [ ] Implement role hierarchy logic
   - [ ] Implement `getUserSiteRole(user, siteId)` method
@@ -53,9 +54,9 @@ This document tracks the implementation progress of the permission service packa
 
 - [ ] Update `src/index.ts` with proper exports
   - [ ] Export all types from permissions.ts
-  - [ ] Export permissionService singleton
   - [ ] Export PermissionService class
-  - [ ] Ensure cache service is NOT exported
+  - [ ] Export CacheService class
+  - [ ] No singleton instances exported
 
 ## Phase 6: Comprehensive Testing
 
