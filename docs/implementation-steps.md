@@ -52,11 +52,11 @@ This document tracks the implementation progress of the permission service packa
 
 ## Phase 5: Package Exports
 
-- [ ] Update `src/index.ts` with proper exports
-  - [ ] Export all types from permissions.ts
-  - [ ] Export PermissionService class
-  - [ ] Export CacheService class
-  - [ ] No singleton instances exported
+- [x] Update `src/index.ts` with proper exports
+  - [x] Export all types from permissions.ts
+  - [x] Export PermissionService class
+  - [x] Export CacheService class
+  - [x] No singleton instances exported
 
 ## Phase 6: Comprehensive Testing
 
@@ -127,6 +127,6 @@ This document tracks the implementation progress of the permission service packa
 
 - Each checkbox represents a completed implementation step
 - Tests should be written alongside implementation, not after
-- Cache service remains internal and is not exported
+- Cache is external. Will be used on module level in Cloud Functions and during the user session on Frontend.
 - Super admin gets special treatment in all permission checks
 - All methods should handle missing/invalid data gracefully
