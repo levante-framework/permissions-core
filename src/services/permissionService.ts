@@ -57,7 +57,7 @@ export class PermissionService {
   }
 
   getPermissionMatrix(): PermissionMatrix {
-    return { ...this.permissionMatrix };
+    return JSON.parse(JSON.stringify(this.permissionMatrix));
   }
 
   getVersion(): string {
@@ -69,6 +69,7 @@ export class PermissionService {
   }
 
   private isSuperAdmin(user: User): boolean {
+    if (!user || !user.roles) return false;
     return user.roles.some(role => role.role === 'super_admin');
   }
 
@@ -98,6 +99,10 @@ export class PermissionService {
       return false;
     }
 
+    if (!user || !resource || !action) {
+      return false;
+    }
+
     if (!this.isSuperAdmin(user)) {
       return false;
     }
@@ -120,6 +125,10 @@ export class PermissionService {
   canPerformSiteAction(user: User, siteId: string, resource: Resource, action: Action): boolean {
     if (!this.isLoaded) {
       console.warn('Permissions not loaded yet');
+      return false;
+    }
+
+    if (!user || !siteId || !resource || !action) {
       return false;
     }
 
