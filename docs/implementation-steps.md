@@ -76,30 +76,30 @@ This document tracks the implementation progress of the permission service packa
 
 ## Phase 7: Permission Service Testing
 
-- [ ] Create `src/services/permissionService.test.ts`
-  - [ ] Test permission loading
-  - [ ] Test role hierarchy logic
-  - [ ] Test site-specific permission checks
-  - [ ] Test global permission checks (super admin)
-  - [ ] Test user role retrieval
-  - [ ] Test minimum role checking
-  - [ ] Test sites with minimum role
-  - [ ] Test accessible resources
-  - [ ] Test bulk permission checking
-  - [ ] Test role permissions retrieval
-  - [ ] Test caching behavior
-  - [ ] Test edge cases (missing data, invalid users)
-  - [ ] Test super admin special cases
-  - [ ] Test participant restrictions
-- [ ] Run permission service tests to make sure they pass
+- [x] Create `src/services/permissionService.test.ts`
+  - [x] Test permission loading
+  - [x] Test role hierarchy logic
+  - [x] Test site-specific permission checks
+  - [x] Test global permission checks (super admin)
+  - [x] Test user role retrieval
+  - [x] Test minimum role checking
+  - [x] Test sites with minimum role
+  - [x] Test accessible resources
+  - [x] Test bulk permission checking
+  - [x] Test role permissions retrieval
+  - [x] Test caching behavior
+  - [x] Test edge cases (missing data, invalid users)
+  - [x] Test super admin special cases
+  - [x] Test participant restrictions
+- [x] Run permission service tests to make sure they pass
 
 ## Phase 8: Integration Testing
 
-- [ ] Create integration tests
-  - [ ] Test full permission matrix loading
-  - [ ] Test real-world permission scenarios
-  - [ ] Test performance with caching
-  - [ ] Test version migration scenarios
+- [x] Create integration tests
+  - [x] Test full permission matrix loading
+  - [x] Test real-world permission scenarios
+  - [x] Test performance with caching
+  - [x] Test version migration scenarios
 
 ## Phase 9: Documentation and Examples
 

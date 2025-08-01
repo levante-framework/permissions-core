@@ -25,7 +25,7 @@ describe('PermissionService', () => {
       'groups': ['create', 'read', 'update', 'delete', 'exclude'],
       'assignments': ['create', 'read', 'update', 'delete', 'exclude'],
       'users': ['create', 'read', 'update', 'delete', 'exclude'],
-      'admins': ['create', 'read', 'update', 'delete'],
+      'admins': ['create', 'read', 'update', 'delete', 'exclude'],
       'tasks': ['create', 'read', 'update', 'delete', 'exclude']
     },
     'admin': {
