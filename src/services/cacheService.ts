@@ -1,15 +1,29 @@
 import type { CacheEntry, CacheOptions } from '../types/permissions.js';
 
+/**
+ * TTL-based cache service with automatic cleanup and user-specific clearing.
+ * Designed for caching permission checks and user data.
+ */
 export class CacheService {
   private cache = new Map<string, CacheEntry>();
   private cleanupInterval: NodeJS.Timeout | null = null;
   private readonly defaultTtl: number;
 
+  /**
+   * Creates a new CacheService instance with automatic cleanup.
+   * @param defaultTtl - Default time-to-live in milliseconds (default: 1 hour)
+   */
   constructor(defaultTtl: number = 3600000) { // 1 hour default
     this.defaultTtl = defaultTtl;
     this.startCleanupTimer();
   }
 
+  /**
+   * Retrieves a value from the cache.
+   * Automatically removes expired entries.
+   * @param key - Cache key
+   * @returns Cached value or null if not found/expired
+   */
   get<T>(key: string): T | null {
     const entry = this.cache.get(key);
     
@@ -25,6 +39,12 @@ export class CacheService {
     return entry.value as T;
   }
 
+  /**
+   * Stores a value in the cache with TTL.
+   * @param key - Cache key
+   * @param value - Value to cache
+   * @param options - Cache options including custom TTL
+   */
   set<T>(key: string, value: T, options?: CacheOptions): void {
     const ttl = options?.ttl ?? this.defaultTtl;
     const expiresAt = Date.now() + ttl;
@@ -35,10 +55,18 @@ export class CacheService {
     });
   }
 
+  /**
+   * Clears all entries from the cache.
+   */
   clear(): void {
     this.cache.clear();
   }
 
+  /**
+   * Clears all cache entries for a specific user.
+   * Removes entries with keys starting with userId or matching userId exactly.
+   * @param userId - User ID to clear cache for
+   */
   clearUser(userId: string): void {
     const keysToDelete: string[] = [];
     
@@ -51,14 +79,35 @@ export class CacheService {
     keysToDelete.forEach(key => this.cache.delete(key));
   }
 
+  /**
+   * Generates a cache key for permission checks.
+   * @param userId - User identifier
+   * @param siteId - Site identifier
+   * @param resource - Resource type
+   * @param action - Action type
+   * @returns Formatted cache key
+   */
   generatePermissionKey(userId: string, siteId: string, resource: string, action: string): string {
     return `${userId}-${siteId}-${resource}-${action}`;
   }
 
+  /**
+   * Generates a cache key for user role lookups.
+   * @param userId - User identifier
+   * @param siteId - Site identifier
+   * @returns Formatted cache key for user role
+   */
   generateUserRoleKey(userId: string, siteId: string): string {
     return `${userId}-${siteId}-role`;
   }
 
+  /**
+   * Generates a cache key for bulk permission checks.
+   * @param userId - User identifier
+   * @param siteId - Site identifier
+   * @param checkHash - Hash of the permission checks
+   * @returns Formatted cache key for bulk permissions
+   */
   generateBulkPermissionKey(userId: string, siteId: string, checkHash: string): string {
     return `${userId}-${siteId}-bulk-${checkHash}`;
   }
@@ -83,6 +132,10 @@ export class CacheService {
     keysToDelete.forEach(key => this.cache.delete(key));
   }
 
+  /**
+   * Destroys the cache service, stopping cleanup timer and clearing all data.
+   * Should be called when the service is no longer needed.
+   */
   destroy(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
@@ -91,10 +144,20 @@ export class CacheService {
     this.clear();
   }
 
+  /**
+   * Gets the current number of entries in the cache.
+   * @returns Number of cached entries
+   */
   size(): number {
     return this.cache.size;
   }
 
+  /**
+   * Checks if a key exists in the cache and is not expired.
+   * Automatically removes expired entries.
+   * @param key - Cache key to check
+   * @returns True if key exists and is not expired
+   */
   has(key: string): boolean {
     const entry = this.cache.get(key);
     if (!entry) return false;

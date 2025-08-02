@@ -103,10 +103,10 @@ This document tracks the implementation progress of the permission service packa
 
 ## Phase 9: Documentation and Examples
 
-- [ ] Update `README.md` with usage examples
-- [ ] Add JSDoc comments to all public methods
-- [ ] Create example usage scenarios
-- [ ] Document integration patterns for Vue and Cloud Functions
+- [x] Update `README.md` with usage examples
+- [x] Add JSDoc comments to all public methods
+- [x] Create example usage scenarios
+- [x] Document integration patterns for Vue and Cloud Functions
 
 ## Phase 10: Build and Validation
 
@@ -123,6 +123,10 @@ This document tracks the implementation progress of the permission service packa
 - [ ] Confirm caching strategy
 - [ ] Validate error handling approach
 - [ ] Ensure no breaking changes to existing interfaces
+
+## Phase 12: GitHub Actions
+- [ ] Add GitHub Action to run tests on PRs (including updates to PRs)
+- [ ] Add GitHub Action to deploy package to NPM on merge to main branch
 
 ---
 
