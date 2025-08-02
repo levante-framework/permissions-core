@@ -1,5 +1,5 @@
 {
-  "name": "permissions-service",
+  "name": "@levante-framework/permissions-core",
   "version": "1.0.0",
   "description": "Shared permissions service for front-end and back-end",
   "type": "module",

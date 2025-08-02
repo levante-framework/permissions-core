@@ -1,4 +1,4 @@
-// Export all types
+// all types
 export type {
   Role,
   Action,
@@ -15,11 +15,11 @@ export type {
   PermissionDocument
 } from './types/permissions.js';
 
-// Export core services
+// core services
 export { PermissionService } from './services/permissionService.js';
 export { CacheService } from './services/cacheService.js';
 
-// Export utilities (for advanced usage)
+// utilities
 export { VersionHandler } from './utils/versionHandler.js';
 export type { 
   VersionCompatibility, 
