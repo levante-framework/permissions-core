@@ -127,7 +127,7 @@ participant < research_assistant < admin < site_admin < super_admin
     },
     // ... other roles
   },
-  "lastUpdated": "2025-07-18T10:00:00Z",
+  "updatedAt": "2025-07-18T10:00:00Z",
   "version": "1.0.0"
 }
 ```

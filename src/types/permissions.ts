@@ -48,11 +48,11 @@ export interface PermissionServiceConfig {
 
 export interface VersionInfo {
   version: string;
-  lastUpdated: string;
+  updatedAt: string;
 }
 
 export interface PermissionDocument {
   permissions: PermissionMatrix;
   version: string;
-  lastUpdated: string;
+  updatedAt: string;
 }

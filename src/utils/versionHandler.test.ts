@@ -44,7 +44,7 @@ describe('VersionHandler', () => {
   const validPermissionDocument: PermissionDocument = {
     permissions: validPermissionMatrix,
     version: '1.0.0',
-    lastUpdated: '2025-01-01T00:00:00Z'
+    updatedAt: '2025-01-01T00:00:00Z'
   };
 
   describe('checkCompatibility', () => {
@@ -102,7 +102,7 @@ describe('VersionHandler', () => {
     it('should reject document missing permissions', () => {
       const invalidDoc = {
         version: '1.0.0',
-        lastUpdated: '2025-01-01T00:00:00Z'
+        updatedAt: '2025-01-01T00:00:00Z'
       };
       
       const result = VersionHandler.validatePermissionDocument(invalidDoc);
@@ -114,7 +114,7 @@ describe('VersionHandler', () => {
     it('should reject document missing version', () => {
       const invalidDoc = {
         permissions: validPermissionMatrix,
-        lastUpdated: '2025-01-01T00:00:00Z'
+        updatedAt: '2025-01-01T00:00:00Z'
       };
       
       const result = VersionHandler.validatePermissionDocument(invalidDoc);
@@ -123,7 +123,7 @@ describe('VersionHandler', () => {
       expect(result.errors).toContain('Missing version property');
     });
 
-    it('should reject document missing lastUpdated', () => {
+    it('should reject document missing updatedAt', () => {
       const invalidDoc = {
         permissions: validPermissionMatrix,
         version: '1.0.0'
@@ -132,14 +132,14 @@ describe('VersionHandler', () => {
       const result = VersionHandler.validatePermissionDocument(invalidDoc);
       
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Missing lastUpdated property');
+      expect(result.errors).toContain('Missing updatedAt property');
     });
 
     it('should reject document with non-object permissions', () => {
       const invalidDoc = {
         permissions: 'not an object',
         version: '1.0.0',
-        lastUpdated: '2025-01-01T00:00:00Z'
+        updatedAt: '2025-01-01T00:00:00Z'
       };
       
       const result = VersionHandler.validatePermissionDocument(invalidDoc);
@@ -175,7 +175,7 @@ describe('VersionHandler', () => {
         }
       };
       
-      const result = VersionHandler.validatePermissionMatrix(invalidMatrix);
+      const result = VersionHandler.validatePermissionMatrix(invalidMatrix as any);
       
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Invalid role: invalid_role');
@@ -188,7 +188,7 @@ describe('VersionHandler', () => {
         }
       };
       
-      const result = VersionHandler.validatePermissionMatrix(invalidMatrix);
+      const result = VersionHandler.validatePermissionMatrix(invalidMatrix as any);
       
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Invalid resource: invalid_resource for role admin');
@@ -201,7 +201,7 @@ describe('VersionHandler', () => {
         }
       };
       
-      const result = VersionHandler.validatePermissionMatrix(invalidMatrix);
+      const result = VersionHandler.validatePermissionMatrix(invalidMatrix as any);
       
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Invalid action: invalid_action for admin.groups');
@@ -212,7 +212,7 @@ describe('VersionHandler', () => {
         'admin': 'not an object'
       };
       
-      const result = VersionHandler.validatePermissionMatrix(invalidMatrix);
+      const result = VersionHandler.validatePermissionMatrix(invalidMatrix as any);
       
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Role admin must have resources object');
@@ -225,7 +225,7 @@ describe('VersionHandler', () => {
         }
       };
       
-      const result = VersionHandler.validatePermissionMatrix(invalidMatrix);
+      const result = VersionHandler.validatePermissionMatrix(invalidMatrix as any);
       
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Actions for admin.groups must be an array');
@@ -311,7 +311,7 @@ describe('VersionHandler', () => {
           }
         },
         version: '1.0.0',
-        lastUpdated: '2025-01-01T00:00:00Z'
+        updatedAt: '2025-01-01T00:00:00Z'
       };
       
       const result = VersionHandler.processPermissionDocument(invalidDoc);
