@@ -47,8 +47,8 @@ export class VersionHandler {
       errors.push('Missing version property');
     }
 
-    if (!document.lastUpdated) {
-      errors.push('Missing lastUpdated property');
+    if (!document.updatedAt) {
+      errors.push('Missing updatedAt property');
     }
 
     if (document.permissions && typeof document.permissions !== 'object') {

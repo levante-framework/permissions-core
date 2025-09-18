@@ -140,15 +140,15 @@ describe('Permission Types', () => {
           }
         },
         version: '1.0.0',
-        lastUpdated: '2025-01-01T00:00:00Z'
+        updatedAt: '2025-01-01T00:00:00Z'
       };
 
       expect(document).toHaveProperty('permissions');
       expect(document).toHaveProperty('version');
-      expect(document).toHaveProperty('lastUpdated');
+      expect(document).toHaveProperty('updatedAt');
       expect(typeof document.permissions).toBe('object');
       expect(typeof document.version).toBe('string');
-      expect(typeof document.lastUpdated).toBe('string');
+      expect(typeof document.updatedAt).toBe('string');
     });
   });
 

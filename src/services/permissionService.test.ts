@@ -54,7 +54,7 @@ describe('PermissionService', () => {
   const validPermissionDocument: PermissionDocument = {
     permissions: validPermissionMatrix,
     version: '1.0.0',
-    lastUpdated: '2025-01-01T00:00:00Z'
+    updatedAt: '2025-01-01T00:00:00Z'
   };
 
   const superAdminUser: User = {

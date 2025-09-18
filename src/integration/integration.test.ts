@@ -54,7 +54,7 @@ describe('Integration Tests', () => {
   const fullPermissionDocument: PermissionDocument = {
     permissions: fullPermissionMatrix,
     version: '1.0.0',
-    lastUpdated: '2025-01-01T00:00:00Z'
+    updatedAt: '2025-01-01T00:00:00Z'
   };
 
   beforeEach(() => {
@@ -109,7 +109,7 @@ describe('Integration Tests', () => {
       const invalidDocument = {
         permissions: 'invalid',
         version: '1.0.0',
-        lastUpdated: '2025-01-01T00:00:00Z'
+        updatedAt: '2025-01-01T00:00:00Z'
       } as any;
       
       // Version handler should catch this
@@ -429,7 +429,7 @@ describe('Integration Tests', () => {
       const migratedDocument: PermissionDocument = {
         permissions: migrationResult.migratedMatrix,
         version: '1.0.0',
-        lastUpdated: new Date().toISOString()
+        updatedAt: new Date().toISOString()
       };
 
       const loadResult = service.loadPermissions(migratedDocument);
