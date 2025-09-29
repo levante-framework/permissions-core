@@ -1,4 +1,4 @@
-import type { PermissionMatrix, PermissionDocument, Role, Resource, Action } from '../types/permissions.js';
+import type { PermissionMatrix, PermissionDocument, Role, Resource, Action, GroupSubResource, AdminSubResource } from '../types/permissions.js';
 
 export interface VersionCompatibility {
   isCompatible: boolean;
@@ -63,6 +63,8 @@ export class VersionHandler {
     const validRoles: Role[] = ['super_admin', 'site_admin', 'admin', 'research_assistant', 'participant'];
     const validResources: Resource[] = ['groups', 'assignments', 'users', 'admins', 'tasks'];
     const validActions: Action[] = ['create', 'read', 'update', 'delete', 'exclude'];
+    const validGroupSubResources: GroupSubResource[] = ['sites', 'schools', 'classes', 'cohorts'];
+    const validAdminSubResources: AdminSubResource[] = ['site_admin', 'admin', 'research_assistant'];
 
     if (!matrix || typeof matrix !== 'object') {
       errors.push('Permission matrix must be an object');
@@ -80,20 +82,66 @@ export class VersionHandler {
         continue;
       }
 
-      for (const [resource, actions] of Object.entries(resources)) {
+      for (const [resource, value] of Object.entries(resources)) {
         if (!validResources.includes(resource as Resource)) {
           errors.push(`Invalid resource: ${resource} for role ${role}`);
           continue;
         }
 
-        if (!Array.isArray(actions)) {
-          errors.push(`Actions for ${role}.${resource} must be an array`);
-          continue;
-        }
+        if (resource === 'groups') {
+          if (typeof value !== 'object' || Array.isArray(value)) {
+            errors.push(`${role}.${resource} must be an object with sub-resources`);
+            continue;
+          }
 
-        for (const action of actions) {
-          if (!validActions.includes(action as Action)) {
-            errors.push(`Invalid action: ${action} for ${role}.${resource}`);
+          for (const subResource of validGroupSubResources) {
+            if (!(subResource in value)) {
+              errors.push(`${role}.${resource} missing required sub-resource: ${subResource}`);
+            } else {
+              const actions = (value as any)[subResource];
+              if (!Array.isArray(actions)) {
+                errors.push(`${role}.${resource}.${subResource} must be an array`);
+              } else {
+                for (const action of actions) {
+                  if (!validActions.includes(action as Action)) {
+                    errors.push(`Invalid action: ${action} for ${role}.${resource}.${subResource}`);
+                  }
+                }
+              }
+            }
+          }
+        } else if (resource === 'admins') {
+          if (typeof value !== 'object' || Array.isArray(value)) {
+            errors.push(`${role}.${resource} must be an object with sub-resources`);
+            continue;
+          }
+
+          for (const subResource of validAdminSubResources) {
+            if (!(subResource in value)) {
+              errors.push(`${role}.${resource} missing required sub-resource: ${subResource}`);
+            } else {
+              const actions = (value as any)[subResource];
+              if (!Array.isArray(actions)) {
+                errors.push(`${role}.${resource}.${subResource} must be an array`);
+              } else {
+                for (const action of actions) {
+                  if (!validActions.includes(action as Action)) {
+                    errors.push(`Invalid action: ${action} for ${role}.${resource}.${subResource}`);
+                  }
+                }
+              }
+            }
+          }
+        } else {
+          if (!Array.isArray(value)) {
+            errors.push(`${role}.${resource} must be an array`);
+            continue;
+          }
+
+          for (const action of value) {
+            if (!validActions.includes(action as Action)) {
+              errors.push(`Invalid action: ${action} for ${role}.${resource}`);
+            }
           }
         }
       }

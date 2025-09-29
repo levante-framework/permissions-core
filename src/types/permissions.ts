@@ -4,6 +4,12 @@ export type Action = 'create' | 'read' | 'update' | 'delete' | 'exclude';
 
 export type Resource = 'groups' | 'assignments' | 'users' | 'admins' | 'tasks';
 
+export type GroupSubResource = 'sites' | 'schools' | 'classes' | 'cohorts';
+
+export type AdminSubResource = 'site_admin' | 'admin' | 'research_assistant';
+
+export type SubResource = GroupSubResource | AdminSubResource;
+
 export interface UserRole {
   siteId: string;
   role: Role;
@@ -15,9 +21,19 @@ export interface User {
   roles: UserRole[];
 }
 
+export type NestedPermissions<T extends string> = {
+  [subResource in T]: Action[];
+};
+
+export type FlatPermissions = Action[];
+
 export interface PermissionMatrix {
   [role: string]: {
-    [resource: string]: Action[];
+    groups: NestedPermissions<GroupSubResource>;
+    admins: NestedPermissions<AdminSubResource>;
+    assignments: FlatPermissions;
+    users: FlatPermissions;
+    tasks: FlatPermissions;
   };
 }
 
@@ -33,11 +49,13 @@ export interface CacheOptions {
 export interface PermissionCheck {
   resource: Resource;
   action: Action;
+  subResource?: SubResource;
 }
 
 export interface BulkPermissionResult {
   resource: Resource;
   action: Action;
+  subResource?: SubResource;
   allowed: boolean;
 }
 
