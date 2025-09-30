@@ -11,6 +11,13 @@ import type {
   GroupSubResource,
   AdminSubResource
 } from '../types/permissions.js';
+import { 
+  ROLES, 
+  RESOURCES, 
+  ALL_GROUP_SUB_RESOURCES, 
+  ALL_ADMIN_SUB_RESOURCES, 
+  FLAT_RESOURCES 
+} from '../types/constants.js';
 import { CacheService } from './cacheService.js';
 import { VersionHandler } from '../utils/versionHandler.js';
 
@@ -25,11 +32,11 @@ export class PermissionService {
   private cache?: CacheService;
 
   private static readonly ROLE_HIERARCHY: Role[] = [
-    'participant',
-    'research_assistant', 
-    'admin',
-    'site_admin',
-    'super_admin'
+    ROLES.PARTICIPANT,
+    ROLES.RESEARCH_ASSISTANT, 
+    ROLES.ADMIN,
+    ROLES.SITE_ADMIN,
+    ROLES.SUPER_ADMIN
   ];
 
   /**
@@ -100,20 +107,18 @@ export class PermissionService {
 
   private isSuperAdmin(user: User): boolean {
     if (!user || !user.roles) return false;
-    return user.roles.some(role => role.role === 'super_admin');
+    return user.roles.some(role => role.role === ROLES.SUPER_ADMIN);
   }
 
   private requiresSubResource(resource: Resource): boolean {
-    return resource === 'groups' || resource === 'admins';
+    return resource === RESOURCES.GROUPS || resource === RESOURCES.ADMINS;
   }
 
   private isValidSubResource(resource: Resource, subResource: string): boolean {
-    if (resource === 'groups') {
-      const validGroupSubResources: GroupSubResource[] = ['sites', 'schools', 'classes', 'cohorts'];
-      return validGroupSubResources.includes(subResource as GroupSubResource);
-    } else if (resource === 'admins') {
-      const validAdminSubResources: AdminSubResource[] = ['site_admin', 'admin', 'research_assistant'];
-      return validAdminSubResources.includes(subResource as AdminSubResource);
+    if (resource === RESOURCES.GROUPS) {
+      return ALL_GROUP_SUB_RESOURCES.includes(subResource as GroupSubResource);
+    } else if (resource === RESOURCES.ADMINS) {
+      return ALL_ADMIN_SUB_RESOURCES.includes(subResource as AdminSubResource);
     }
     return false;
   }
@@ -130,7 +135,7 @@ export class PermissionService {
 
     const resourcePermissions = rolePermissions[resource];
     
-    if (resource === 'groups' || resource === 'admins') {
+    if (resource === RESOURCES.GROUPS || resource === RESOURCES.ADMINS) {
       if (!subResource) {
         return [];
       }
@@ -156,7 +161,7 @@ export class PermissionService {
    */
   getUserSiteRole(user: User, siteId: string): Role | null {
     if (this.isSuperAdmin(user)) {
-      return 'super_admin';
+      return ROLES.SUPER_ADMIN;
     }
 
     const siteRole = user.roles.find(role => role.siteId === siteId);
@@ -217,7 +222,7 @@ export class PermissionService {
       return this.cache.get<boolean>(cacheKey) || false;
     }
 
-    const allowedActions = this.getActionsForResource('super_admin', resource, subResource);
+    const allowedActions = this.getActionsForResource(ROLES.SUPER_ADMIN, resource, subResource);
     const result = allowedActions.includes(action);
 
     if (cacheKey) {
@@ -322,10 +327,9 @@ export class PermissionService {
       return [];
     }
 
-    const flatResources: Resource[] = ['assignments', 'users', 'tasks'];
     const accessibleResources: Resource[] = [];
 
-    for (const resource of flatResources) {
+    for (const resource of FLAT_RESOURCES) {
       if (this.canPerformSiteAction(user, siteId, resource, action)) {
         accessibleResources.push(resource);
       }
@@ -347,11 +351,10 @@ export class PermissionService {
       return [];
     }
 
-    const groupSubResources: GroupSubResource[] = ['sites', 'schools', 'classes', 'cohorts'];
     const accessibleSubResources: GroupSubResource[] = [];
 
-    for (const subResource of groupSubResources) {
-      if (this.canPerformSiteAction(user, siteId, 'groups', action, subResource)) {
+    for (const subResource of ALL_GROUP_SUB_RESOURCES) {
+      if (this.canPerformSiteAction(user, siteId, RESOURCES.GROUPS, action, subResource)) {
         accessibleSubResources.push(subResource);
       }
     }
@@ -372,11 +375,10 @@ export class PermissionService {
       return [];
     }
 
-    const adminSubResources: AdminSubResource[] = ['site_admin', 'admin', 'research_assistant'];
     const accessibleSubResources: AdminSubResource[] = [];
 
-    for (const subResource of adminSubResources) {
-      if (this.canPerformSiteAction(user, siteId, 'admins', action, subResource)) {
+    for (const subResource of ALL_ADMIN_SUB_RESOURCES) {
+      if (this.canPerformSiteAction(user, siteId, RESOURCES.ADMINS, action, subResource)) {
         accessibleSubResources.push(subResource);
       }
     }

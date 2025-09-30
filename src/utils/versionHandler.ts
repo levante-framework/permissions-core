@@ -1,4 +1,12 @@
-import type { PermissionMatrix, PermissionDocument, Role, Resource, Action, GroupSubResource, AdminSubResource } from '../types/permissions.js';
+import type { PermissionMatrix, Role, Resource, Action, GroupSubResource, AdminSubResource } from '../types/permissions.js';
+import { 
+  ALL_ROLES, 
+  ALL_RESOURCES, 
+  ALL_ACTIONS, 
+  ALL_GROUP_SUB_RESOURCES, 
+  ALL_ADMIN_SUB_RESOURCES,
+  RESOURCES
+} from '../types/constants.js';
 
 export interface VersionCompatibility {
   isCompatible: boolean;
@@ -60,11 +68,11 @@ export class VersionHandler {
 
   static validatePermissionMatrix(matrix: PermissionMatrix): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
-    const validRoles: Role[] = ['super_admin', 'site_admin', 'admin', 'research_assistant', 'participant'];
-    const validResources: Resource[] = ['groups', 'assignments', 'users', 'admins', 'tasks'];
-    const validActions: Action[] = ['create', 'read', 'update', 'delete', 'exclude'];
-    const validGroupSubResources: GroupSubResource[] = ['sites', 'schools', 'classes', 'cohorts'];
-    const validAdminSubResources: AdminSubResource[] = ['site_admin', 'admin', 'research_assistant'];
+    const validRoles: Role[] = ALL_ROLES as unknown as Role[];
+    const validResources: Resource[] = ALL_RESOURCES as unknown as Resource[];
+    const validActions: Action[] = ALL_ACTIONS as unknown as Action[];
+    const validGroupSubResources: GroupSubResource[] = ALL_GROUP_SUB_RESOURCES as unknown as GroupSubResource[];
+    const validAdminSubResources: AdminSubResource[] = ALL_ADMIN_SUB_RESOURCES as unknown as AdminSubResource[];
 
     if (!matrix || typeof matrix !== 'object') {
       errors.push('Permission matrix must be an object');
@@ -88,7 +96,7 @@ export class VersionHandler {
           continue;
         }
 
-        if (resource === 'groups') {
+        if (resource === RESOURCES.GROUPS) {
           if (typeof value !== 'object' || Array.isArray(value)) {
             errors.push(`${role}.${resource} must be an object with sub-resources`);
             continue;
@@ -110,7 +118,7 @@ export class VersionHandler {
               }
             }
           }
-        } else if (resource === 'admins') {
+        } else if (resource === RESOURCES.ADMINS) {
           if (typeof value !== 'object' || Array.isArray(value)) {
             errors.push(`${role}.${resource} must be an object with sub-resources`);
             continue;

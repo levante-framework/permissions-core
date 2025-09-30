@@ -10,6 +10,8 @@ export type AdminSubResource = 'site_admin' | 'admin' | 'research_assistant';
 
 export type SubResource = GroupSubResource | AdminSubResource;
 
+export * from './constants.js';
+
 export interface UserRole {
   siteId: string;
   role: Role;
