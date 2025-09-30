@@ -106,7 +106,10 @@ export class PermissionService {
   }
 
   private isSuperAdmin(user: User): boolean {
-    if (!user || !user.roles) return false;
+    if (!user || !user.roles) {
+      console.warn('isSuperAdmin check failed: user or user.roles is missing');
+      return false;
+    }
     return user.roles.some(role => role.role === ROLES.SUPER_ADMIN);
   }
 
@@ -180,6 +183,7 @@ export class PermissionService {
     const requiredLevel = PermissionService.ROLE_HIERARCHY.indexOf(requiredRole);
     
     if (userLevel === -1 || requiredLevel === -1) {
+      console.warn('hasMinimumRole failed: invalid role', { userRole, requiredRole, userLevel, requiredLevel });
       return false;
     }
 
@@ -197,23 +201,27 @@ export class PermissionService {
    */
   canPerformGlobalAction(user: User, resource: Resource, action: Action, subResource?: SubResource): boolean {
     if (!this.isLoaded) {
-      console.warn('Permissions not loaded yet');
+      console.warn('canPerformGlobalAction failed: permissions not loaded yet');
       return false;
     }
 
     if (!user || !resource || !action) {
+      console.warn('canPerformGlobalAction failed: missing required parameters', { user: !!user, resource, action });
       return false;
     }
 
     if (!this.isSuperAdmin(user)) {
+      console.warn('canPerformGlobalAction failed: user is not super admin', { userId: user.uid });
       return false;
     }
 
     if (this.requiresSubResource(resource) && !subResource) {
+      console.warn('canPerformGlobalAction failed: resource requires sub-resource', { resource });
       return false;
     }
 
     if (subResource && !this.isValidSubResource(resource, subResource)) {
+      console.warn('canPerformGlobalAction failed: invalid sub-resource', { resource, subResource });
       return false;
     }
 
@@ -245,19 +253,22 @@ export class PermissionService {
    */
   canPerformSiteAction(user: User, siteId: string, resource: Resource, action: Action, subResource?: SubResource): boolean {
     if (!this.isLoaded) {
-      console.warn('Permissions not loaded yet');
+      console.warn('canPerformSiteAction failed: permissions not loaded yet');
       return false;
     }
 
     if (!user || !siteId || !resource || !action) {
+      console.warn('canPerformSiteAction failed: missing required parameters', { user: !!user, siteId, resource, action });
       return false;
     }
 
     if (this.requiresSubResource(resource) && !subResource) {
+      console.warn('canPerformSiteAction failed: resource requires sub-resource', { resource });
       return false;
     }
 
     if (subResource && !this.isValidSubResource(resource, subResource)) {
+      console.warn('canPerformSiteAction failed: invalid sub-resource', { resource, subResource });
       return false;
     }
 
@@ -272,6 +283,7 @@ export class PermissionService {
 
     const userRole = this.getUserSiteRole(user, siteId);
     if (!userRole) {
+      console.warn('canPerformSiteAction failed: user has no role for site', { userId: user.uid, siteId });
       if (cacheKey) {
         this.cache?.set(cacheKey, false);
       }
@@ -297,11 +309,12 @@ export class PermissionService {
    */
   getSitesWithMinRole(user: User, minRole: Role): string[] {
     if (this.isSuperAdmin(user)) {
-      return ['*']; // Indicates all sites
+      return ['*'];
     }
 
     const minLevel = PermissionService.ROLE_HIERARCHY.indexOf(minRole);
     if (minLevel === -1) {
+      console.warn('getSitesWithMinRole failed: invalid minimum role', { minRole });
       return [];
     }
 
@@ -323,7 +336,7 @@ export class PermissionService {
    */
   getAccessibleResources(user: User, siteId: string, action: Action): Resource[] {
     if (!this.isLoaded) {
-      console.warn('Permissions not loaded yet');
+      console.warn('getAccessibleResources failed: permissions not loaded yet');
       return [];
     }
 
@@ -347,7 +360,7 @@ export class PermissionService {
    */
   getAccessibleGroupSubResources(user: User, siteId: string, action: Action): GroupSubResource[] {
     if (!this.isLoaded) {
-      console.warn('Permissions not loaded yet');
+      console.warn('getAccessibleGroupSubResources failed: permissions not loaded yet');
       return [];
     }
 
@@ -371,7 +384,7 @@ export class PermissionService {
    */
   getAccessibleAdminSubResources(user: User, siteId: string, action: Action): AdminSubResource[] {
     if (!this.isLoaded) {
-      console.warn('Permissions not loaded yet');
+      console.warn('getAccessibleAdminSubResources failed: permissions not loaded yet');
       return [];
     }
 
@@ -397,7 +410,7 @@ export class PermissionService {
    */
   bulkPermissionCheck(user: User, siteId: string, checks: PermissionCheck[]): BulkPermissionResult[] {
     if (!this.isLoaded) {
-      console.warn('Permissions not loaded yet');
+      console.warn('bulkPermissionCheck failed: permissions not loaded yet');
       return checks.map(check => ({
         resource: check.resource,
         action: check.action,
@@ -434,12 +447,13 @@ export class PermissionService {
    */
   getRolePermissions(role: Role): PermissionMatrix[Role] | {} {
     if (!this.isLoaded) {
-      console.warn('Permissions not loaded yet');
+      console.warn('getRolePermissions failed: permissions not loaded yet');
       return {};
     }
 
     const rolePermissions = this.permissionMatrix[role];
     if (!rolePermissions) {
+      console.warn('getRolePermissions failed: role not found in permission matrix', { role });
       return {};
     }
 
@@ -457,15 +471,17 @@ export class PermissionService {
    */
   roleHasPermission(role: Role, resource: Resource, action: Action, subResource?: SubResource): boolean {
     if (!this.isLoaded) {
-      console.warn('Permissions not loaded yet');
+      console.warn('roleHasPermission failed: permissions not loaded yet');
       return false;
     }
 
     if (this.requiresSubResource(resource) && !subResource) {
+      console.warn('roleHasPermission failed: resource requires sub-resource', { resource });
       return false;
     }
 
     if (subResource && !this.isValidSubResource(resource, subResource)) {
+      console.warn('roleHasPermission failed: invalid sub-resource', { resource, subResource });
       return false;
     }
 
