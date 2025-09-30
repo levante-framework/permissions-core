@@ -25,6 +25,11 @@ export class CacheService {
    * @returns Cached value or null if not found/expired
    */
   get<T>(key: string): T | null {
+    if (!key) {
+      console.warn('CacheService.get failed: key is missing');
+      return null;
+    }
+
     const entry = this.cache.get(key);
     
     if (!entry) {
@@ -46,6 +51,11 @@ export class CacheService {
    * @param options - Cache options including custom TTL
    */
   set<T>(key: string, value: T, options?: CacheOptions): void {
+    if (!key) {
+      console.warn('CacheService.set failed: key is missing');
+      return;
+    }
+
     const ttl = options?.ttl ?? this.defaultTtl;
     const expiresAt = Date.now() + ttl;
 
@@ -68,6 +78,11 @@ export class CacheService {
    * @param userId - User ID to clear cache for
    */
   clearUser(userId: string): void {
+    if (!userId) {
+      console.warn('CacheService.clearUser failed: userId is missing');
+      return;
+    }
+
     const keysToDelete: string[] = [];
     
     for (const key of this.cache.keys()) {
@@ -89,6 +104,11 @@ export class CacheService {
    * @returns Formatted cache key
    */
   generatePermissionKey(userId: string, siteId: string, resource: string, action: string, subResource?: string): string {
+    if (!userId || !siteId || !resource || !action) {
+      console.warn('CacheService.generatePermissionKey failed: missing required parameters', { userId: !!userId, siteId, resource, action });
+      return '';
+    }
+
     if (subResource) {
       return `${userId}-${siteId}-${resource}-${subResource}-${action}`;
     }
@@ -102,6 +122,10 @@ export class CacheService {
    * @returns Formatted cache key for user role
    */
   generateUserRoleKey(userId: string, siteId: string): string {
+    if (!userId || !siteId) {
+      console.warn('CacheService.generateUserRoleKey failed: missing required parameters', { userId: !!userId, siteId });
+      return '';
+    }
     return `${userId}-${siteId}-role`;
   }
 
@@ -113,6 +137,10 @@ export class CacheService {
    * @returns Formatted cache key for bulk permissions
    */
   generateBulkPermissionKey(userId: string, siteId: string, checkHash: string): string {
+    if (!userId || !siteId || !checkHash) {
+      console.warn('CacheService.generateBulkPermissionKey failed: missing required parameters', { userId: !!userId, siteId, checkHash: !!checkHash });
+      return '';
+    }
     return `${userId}-${siteId}-bulk-${checkHash}`;
   }
 
@@ -163,6 +191,11 @@ export class CacheService {
    * @returns True if key exists and is not expired
    */
   has(key: string): boolean {
+    if (!key) {
+      console.warn('CacheService.has failed: key is missing');
+      return false;
+    }
+
     const entry = this.cache.get(key);
     if (!entry) return false;
     
