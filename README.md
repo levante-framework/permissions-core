@@ -6,7 +6,7 @@ A TypeScript package implementing a resource-based access control system for mul
 
 - **Multi-site Support**: Site-scoped permissions with super admin global access
 - **Role Hierarchy**: Five-tier role system from participant to super admin
-- **Resource-based Access Control**: Granular permissions for groups, assignments, users, admins, and tasks
+- **Resource-based Access Control**: Granular permissions with nested sub-resources for groups and admins
 - **Caching**: TTL-based caching with user-specific clearing and automatic cleanup
 - **Version Management**: Document validation and migration framework
 - **TypeScript**: Full type safety with comprehensive interfaces
@@ -31,16 +31,17 @@ const cache = new CacheService();
 // Create permission service
 const permissions = new PermissionService(cache);
 
-// Check if user can perform action
-const canEdit = await permissions.hasPermission(
-  'user123',
+// Check if user can perform action on a nested resource
+const canEdit = permissions.canPerformSiteAction(
+  user,
   'site456',
   'groups',
-  'update'
+  'update',
+  'schools' // sub-resource required for groups
 );
 
 if (canEdit) {
-  // User can edit groups
+  // User can edit schools
 }
 ```
 
@@ -116,17 +117,48 @@ The system implements a five-tier role hierarchy:
 4. **`site_admin`** - Full control over their site's resources
 5. **`super_admin`** - Full system access across all sites
 
-### Role Permissions Matrix
+### Nested Permissions Structure
 
-| Resource | Action | participant | research_assistant | admin | site_admin | super_admin |
-|----------|--------|-------------|-------------------|-------|------------|-------------|
-| groups | create | ❌ | ❌ | ✅ | ✅ | ✅ |
-| groups | read | ❌ | ✅ | ✅ | ✅ | ✅ |
-| groups | update | ❌ | ❌ | ✅ | ✅ | ✅ |
-| groups | delete | ❌ | ❌ | ❌ | ✅ | ✅ |
-| users | create | ❌ | ✅ | ✅ | ✅ | ✅ |
-| users | read | ❌ | ✅ | ✅ | ✅ | ✅ |
-| admins | exclude | ❌ | ❌ | ❌ | ✅ | ✅ |
+The permission system uses nested sub-resources for `groups` and `admins`:
+
+**Group Sub-Resources:**
+- `sites` - Site-level groups
+- `schools` - School-level groups
+- `classes` - Class-level groups  
+- `cohorts` - Cohort-level groups
+
+**Admin Sub-Resources:**
+- `site_admin` - Site administrator accounts
+- `admin` - Admin accounts
+- `research_assistant` - Research assistant accounts
+
+**Flat Resources:**
+- `assignments` - Task assignments
+- `users` - User accounts
+- `tasks` - System tasks
+
+### Permission Matrix Example
+
+```typescript
+{
+  "admin": {
+    "groups": {
+      "sites": ["read", "update"],
+      "schools": ["read", "update", "delete"],
+      "classes": ["read", "update", "delete"],
+      "cohorts": ["read", "update", "delete"]
+    },
+    "admins": {
+      "site_admin": ["read"],
+      "admin": ["read"],
+      "research_assistant": ["create", "read"]
+    },
+    "assignments": ["create", "read", "update", "delete"],
+    "users": ["create", "read", "update"],
+    "tasks": ["read"]
+  }
+}
+```
 
 ## API Reference
 
@@ -140,29 +172,79 @@ new PermissionService(cache?: CacheService)
 
 #### Methods
 
-##### `hasPermission(userId, siteId, resource, action)`
+##### `canPerformSiteAction(user, siteId, resource, action, subResource?)`
 
-Check if a user has permission to perform an action on a resource.
+Check if a user has permission to perform an action on a resource within a site.
 
 ```typescript
-const canEdit = await permissions.hasPermission(
-  'user123',
+// Nested resource (requires sub-resource)
+const canEditSchools = permissions.canPerformSiteAction(
+  user,
   'site456', 
   'groups',
+  'update',
+  'schools' // required for nested resources
+);
+
+// Flat resource (no sub-resource needed)
+const canEditUsers = permissions.canPerformSiteAction(
+  user,
+  'site456',
+  'users',
   'update'
 );
 ```
 
-##### `hasPermissions(userId, siteId, checks)`
+##### `canPerformGlobalAction(user, resource, action, subResource?)`
+
+Check if a super admin can perform a global action.
+
+```typescript
+const canManageAdmins = permissions.canPerformGlobalAction(
+  superAdminUser,
+  'admins',
+  'delete',
+  'admin'
+);
+```
+
+##### `bulkPermissionCheck(user, siteId, checks)`
 
 Bulk permission checking for multiple resource/action combinations.
 
 ```typescript
-const results = await permissions.hasPermissions('user123', 'site456', [
-  { resource: 'groups', action: 'create' },
+const results = permissions.bulkPermissionCheck(user, 'site456', [
+  { resource: 'groups', action: 'create', subResource: 'schools' },
   { resource: 'users', action: 'read' }
 ]);
-// Returns: [{ resource: 'groups', action: 'create', allowed: true }, ...]
+// Returns: [{ resource: 'groups', action: 'create', subResource: 'schools', allowed: true }, ...]
+```
+
+##### `getAccessibleResources(user, siteId, action)`
+
+Get flat resources the user can perform an action on.
+
+```typescript
+const resources = permissions.getAccessibleResources(user, 'site456', 'create');
+// Returns: ['assignments', 'users'] (only flat resources)
+```
+
+##### `getAccessibleGroupSubResources(user, siteId, action)`
+
+Get group sub-resources the user can perform an action on.
+
+```typescript
+const groupTypes = permissions.getAccessibleGroupSubResources(user, 'site456', 'create');
+// Returns: ['schools', 'classes', 'cohorts']
+```
+
+##### `getAccessibleAdminSubResources(user, siteId, action)`
+
+Get admin sub-resources the user can perform an action on.
+
+```typescript
+const adminTypes = permissions.getAccessibleAdminSubResources(user, 'site456', 'create');
+// Returns: ['research_assistant']
 ```
 
 ##### `getUserRole(userId, siteId)`
@@ -234,16 +316,59 @@ interface User {
 
 ## Permission Matrix Document
 
-The system expects a permission matrix document at `system/permissions`:
+The system expects a permission matrix document with nested structure:
 
 ```typescript
 interface PermissionMatrix {
-  version: string;
-  permissions: {
-    [role: string]: {
-      [resource: string]: string[]; // Array of allowed actions
+  [role: string]: {
+    groups: {
+      sites: Action[];
+      schools: Action[];
+      classes: Action[];
+      cohorts: Action[];
     };
+    admins: {
+      site_admin: Action[];
+      admin: Action[];
+      research_assistant: Action[];
+    };
+    assignments: Action[];
+    users: Action[];
+    tasks: Action[];
   };
+}
+
+interface PermissionDocument {
+  permissions: PermissionMatrix;
+  version: string;
+  updatedAt: string;
+}
+```
+
+**Example Document (stored at `system/permissions`):**
+
+```json
+{
+  "permissions": {
+    "site_admin": {
+      "groups": {
+        "sites": ["read", "update"],
+        "schools": ["create", "read", "update", "delete", "exclude"],
+        "classes": ["create", "read", "update", "delete", "exclude"],
+        "cohorts": ["create", "read", "update", "delete", "exclude"]
+      },
+      "assignments": ["create", "read", "update", "delete", "exclude"],
+      "users": ["create", "read", "update", "delete", "exclude"],
+      "admins": {
+        "site_admin": ["create", "read"],
+        "admin": ["create", "read", "update", "delete", "exclude"],
+        "research_assistant": ["create", "read", "update", "delete"]
+      },
+      "tasks": ["create", "read", "update", "delete", "exclude"]
+    }
+  },
+  "version": "1.1.0",
+  "updatedAt": "2025-09-29T00:00:00Z"
 }
 ```
 

@@ -15,38 +15,83 @@ describe('Integration Tests', () => {
 
   const fullPermissionMatrix: PermissionMatrix = {
     'super_admin': {
-      'groups': ['create', 'read', 'update', 'delete', 'exclude'],
+      'groups': {
+        'sites': ['create', 'read', 'update', 'delete', 'exclude'],
+        'schools': ['create', 'read', 'update', 'delete', 'exclude'],
+        'classes': ['create', 'read', 'update', 'delete', 'exclude'],
+        'cohorts': ['create', 'read', 'update', 'delete', 'exclude']
+      },
       'assignments': ['create', 'read', 'update', 'delete', 'exclude'],
       'users': ['create', 'read', 'update', 'delete', 'exclude'],
-      'admins': ['create', 'read', 'update', 'delete', 'exclude'],
+      'admins': {
+        'site_admin': ['create', 'read', 'update', 'delete'],
+        'admin': ['create', 'read', 'update', 'delete'],
+        'research_assistant': ['create', 'read', 'update', 'delete']
+      },
       'tasks': ['create', 'read', 'update', 'delete', 'exclude']
     },
     'site_admin': {
-      'groups': ['create', 'read', 'update', 'delete', 'exclude'],
+      'groups': {
+        'sites': ['read', 'update'],
+        'schools': ['create', 'read', 'update', 'delete', 'exclude'],
+        'classes': ['create', 'read', 'update', 'delete', 'exclude'],
+        'cohorts': ['create', 'read', 'update', 'delete', 'exclude']
+      },
       'assignments': ['create', 'read', 'update', 'delete', 'exclude'],
       'users': ['create', 'read', 'update', 'delete', 'exclude'],
-      'admins': ['create', 'read', 'update', 'delete', 'exclude'],
+      'admins': {
+        'site_admin': ['create', 'read'],
+        'admin': ['create', 'read', 'update', 'delete', 'exclude'],
+        'research_assistant': ['create', 'read', 'update', 'delete']
+      },
       'tasks': ['create', 'read', 'update', 'delete', 'exclude']
     },
     'admin': {
-      'groups': ['create', 'read', 'update'],
-      'assignments': ['create', 'read', 'update'],
+      'groups': {
+        'sites': ['read', 'update'],
+        'schools': ['read', 'update', 'delete'],
+        'classes': ['read', 'update', 'delete'],
+        'cohorts': ['read', 'update', 'delete']
+      },
+      'assignments': ['create', 'read', 'update', 'delete'],
       'users': ['create', 'read', 'update'],
-      'admins': ['read'],
+      'admins': {
+        'site_admin': ['read'],
+        'admin': ['read'],
+        'research_assistant': ['create', 'read']
+      },
       'tasks': ['read']
     },
     'research_assistant': {
-      'groups': ['read'],
+      'groups': {
+        'sites': ['read'],
+        'schools': ['read'],
+        'classes': ['read'],
+        'cohorts': ['read']
+      },
       'assignments': ['read'],
       'users': ['create', 'read'],
-      'admins': ['read'],
+      'admins': {
+        'site_admin': ['read'],
+        'admin': ['read'],
+        'research_assistant': ['read']
+      },
       'tasks': ['read']
     },
     'participant': {
-      'groups': [],
+      'groups': {
+        'sites': [],
+        'schools': [],
+        'classes': [],
+        'cohorts': []
+      },
       'assignments': [],
       'users': [],
-      'admins': [],
+      'admins': {
+        'site_admin': [],
+        'admin': [],
+        'research_assistant': []
+      },
       'tasks': []
     }
   };
@@ -169,18 +214,18 @@ describe('Integration Tests', () => {
 
       // Test organization admin (super admin) access
       expect(service.canPerformSiteAction(organizationAdmin, 'any-site', 'users', 'delete')).toBe(true);
-      expect(service.canPerformGlobalAction(organizationAdmin, 'admins', 'exclude')).toBe(true);
+      expect(service.canPerformGlobalAction(organizationAdmin, 'admins', 'delete', 'admin')).toBe(true);
       expect(service.getSitesWithMinRole(organizationAdmin, 'admin')).toEqual(['*']);
 
       // Test regional manager access
-      expect(service.canPerformSiteAction(regionalManager, 'region-north', 'admins', 'create')).toBe(true);
+      expect(service.canPerformSiteAction(regionalManager, 'region-north', 'admins', 'create', 'admin')).toBe(true);
       expect(service.canPerformSiteAction(regionalManager, 'region-south', 'users', 'exclude')).toBe(true);
-      expect(service.canPerformSiteAction(regionalManager, 'headquarters', 'admins', 'create')).toBe(false); // Only admin at HQ
-      expect(service.canPerformSiteAction(regionalManager, 'headquarters', 'groups', 'update')).toBe(true);
+      expect(service.canPerformSiteAction(regionalManager, 'headquarters', 'admins', 'create', 'admin')).toBe(false); // Only admin at HQ
+      expect(service.canPerformSiteAction(regionalManager, 'headquarters', 'groups', 'update', 'schools')).toBe(true);
 
       // Test site coordinator varying permissions
-      expect(service.canPerformSiteAction(siteCoordinator, 'site-001', 'groups', 'create')).toBe(true);
-      expect(service.canPerformSiteAction(siteCoordinator, 'site-002', 'groups', 'create')).toBe(false); // Only research assistant
+      expect(service.canPerformSiteAction(siteCoordinator, 'site-001', 'groups', 'create', 'schools')).toBe(false); // Admin can't create schools
+      expect(service.canPerformSiteAction(siteCoordinator, 'site-002', 'groups', 'create', 'schools')).toBe(false); // Only research assistant
       expect(service.canPerformSiteAction(siteCoordinator, 'site-002', 'users', 'create')).toBe(true); // Research assistant can create users
 
       // Test researcher consistent access
@@ -188,7 +233,7 @@ describe('Integration Tests', () => {
       expect(researcherSites).toEqual(['site-001', 'site-002', 'site-003']);
       
       researcherSites.forEach(siteId => {
-        expect(service.canPerformSiteAction(researcher, siteId, 'groups', 'read')).toBe(true);
+        expect(service.canPerformSiteAction(researcher, siteId, 'groups', 'read', 'schools')).toBe(true);
         expect(service.canPerformSiteAction(researcher, siteId, 'users', 'create')).toBe(true);
         expect(service.canPerformSiteAction(researcher, siteId, 'users', 'update')).toBe(false);
       });
@@ -205,14 +250,14 @@ describe('Integration Tests', () => {
       };
 
       // Initially participant - no permissions
-      expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'groups', 'read')).toBe(false);
+      expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'groups', 'read', 'schools')).toBe(false);
       expect(service.getAccessibleResources(evolvingUser, 'site-001', 'read')).toEqual([]);
 
       // Promote to research assistant
       evolvingUser.roles = [{ siteId: 'site-001', role: 'research_assistant' }];
       service.clearUserCache(evolvingUser.uid); // Clear cache after role change
 
-      expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'groups', 'read')).toBe(true);
+      expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'groups', 'read', 'schools')).toBe(true);
       expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'users', 'create')).toBe(true);
       expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'users', 'update')).toBe(false);
 
@@ -220,17 +265,17 @@ describe('Integration Tests', () => {
       evolvingUser.roles = [{ siteId: 'site-001', role: 'admin' }];
       service.clearUserCache(evolvingUser.uid);
 
-      expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'groups', 'create')).toBe(true);
+      expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'groups', 'update', 'schools')).toBe(true);
       expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'users', 'update')).toBe(true);
-      expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'admins', 'create')).toBe(false);
+      expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'admins', 'create', 'admin')).toBe(false);
 
       // Promote to site admin
       evolvingUser.roles = [{ siteId: 'site-001', role: 'site_admin' }];
       service.clearUserCache(evolvingUser.uid);
 
-      expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'admins', 'create')).toBe(true);
+      expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'admins', 'create', 'admin')).toBe(true);
       expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'tasks', 'exclude')).toBe(true);
-      expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'admins', 'exclude')).toBe(true); // Site admin can exclude admins
+      expect(service.canPerformSiteAction(evolvingUser, 'site-001', 'admins', 'delete', 'admin')).toBe(true); // Site admin can delete admins
     });
 
     it('should handle bulk operations in real-world scenarios', () => {
@@ -244,16 +289,16 @@ describe('Integration Tests', () => {
 
       // Test bulk permission check for dashboard rendering
       const dashboardChecks: PermissionCheck[] = [
-        { resource: 'groups', action: 'create' },
-        { resource: 'groups', action: 'read' },
-        { resource: 'groups', action: 'update' },
-        { resource: 'groups', action: 'delete' },
+        { resource: 'groups', action: 'create', subResource: 'schools' },
+        { resource: 'groups', action: 'read', subResource: 'schools' },
+        { resource: 'groups', action: 'update', subResource: 'schools' },
+        { resource: 'groups', action: 'delete', subResource: 'schools' },
         { resource: 'assignments', action: 'create' },
         { resource: 'assignments', action: 'exclude' },
         { resource: 'users', action: 'create' },
         { resource: 'users', action: 'delete' },
-        { resource: 'admins', action: 'read' },
-        { resource: 'admins', action: 'create' },
+        { resource: 'admins', action: 'read', subResource: 'admin' },
+        { resource: 'admins', action: 'create', subResource: 'admin' },
         { resource: 'tasks', action: 'read' },
         { resource: 'tasks', action: 'exclude' }
       ];
@@ -266,9 +311,9 @@ describe('Integration Tests', () => {
       const allowedResults = results.filter(r => r.allowed);
       expect(allowedResults.length).toBeGreaterThan(10);
       
-      // But not admin exclusion
-      const adminExcludeResult = results.find(r => r.resource === 'admins' && r.action === 'create');
-      expect(adminExcludeResult?.allowed).toBe(true);
+      // Check admin create permission
+      const adminCreateResult = results.find(r => r.resource === 'admins' && r.action === 'create');
+      expect(adminCreateResult?.allowed).toBe(true);
     });
 
     it('should handle cross-site permission scenarios', () => {
@@ -283,9 +328,9 @@ describe('Integration Tests', () => {
       };
 
       // Test that permissions are properly isolated by site
-      expect(service.canPerformSiteAction(multiSiteUser, 'site-alpha', 'admins', 'create')).toBe(true);
-      expect(service.canPerformSiteAction(multiSiteUser, 'site-beta', 'admins', 'create')).toBe(false);
-      expect(service.canPerformSiteAction(multiSiteUser, 'site-gamma', 'admins', 'create')).toBe(false);
+      expect(service.canPerformSiteAction(multiSiteUser, 'site-alpha', 'admins', 'create', 'admin')).toBe(true);
+      expect(service.canPerformSiteAction(multiSiteUser, 'site-beta', 'admins', 'create', 'research_assistant')).toBe(true); // admin can create research_assistant
+      expect(service.canPerformSiteAction(multiSiteUser, 'site-gamma', 'admins', 'create', 'admin')).toBe(false); // research_assistant can't create admins
 
       // Test accessible resources vary by site
       const alphaResources = service.getAccessibleResources(multiSiteUser, 'site-alpha', 'create');
@@ -314,12 +359,12 @@ describe('Integration Tests', () => {
       expect(cache.size()).toBe(0);
 
       // First call should populate cache
-      const result1 = service.canPerformSiteAction(testUser, 'site-001', 'groups', 'create');
+      const result1 = service.canPerformSiteAction(testUser, 'site-001', 'users', 'create');
       expect(result1).toBe(true);
       expect(cache.size()).toBe(1);
 
       // Second call should use cache (same result, same cache size)
-      const result2 = service.canPerformSiteAction(testUser, 'site-001', 'groups', 'create');
+      const result2 = service.canPerformSiteAction(testUser, 'site-001', 'users', 'create');
       expect(result2).toBe(true);
       expect(cache.size()).toBe(1); // No new cache entries
 
@@ -342,10 +387,10 @@ describe('Integration Tests', () => {
       };
 
       const bulkChecks: PermissionCheck[] = [
-        { resource: 'groups', action: 'create' },
-        { resource: 'groups', action: 'read' },
-        { resource: 'groups', action: 'update' },
         { resource: 'assignments', action: 'create' },
+        { resource: 'assignments', action: 'read' },
+        { resource: 'assignments', action: 'update' },
+        { resource: 'users', action: 'create' },
         { resource: 'users', action: 'delete' }
       ];
 
@@ -376,7 +421,7 @@ describe('Integration Tests', () => {
 
       // Generate cache entries for many users
       users.forEach(user => {
-        service.canPerformSiteAction(user, 'site-001', 'groups', 'create');
+        service.canPerformSiteAction(user, 'site-001', 'users', 'create');
         service.canPerformSiteAction(user, 'site-001', 'users', 'read');
       });
 
@@ -458,7 +503,7 @@ describe('Integration Tests', () => {
         roles: [{ siteId: 'site-001', role: 'admin' }]
       };
 
-      expect(service.canPerformSiteAction(testUser, 'site-001', 'groups', 'create')).toBe(true);
+      expect(service.canPerformSiteAction(testUser, 'site-001', 'users', 'create')).toBe(true);
     });
 
     it('should handle cache corruption gracefully', () => {
@@ -471,7 +516,7 @@ describe('Integration Tests', () => {
       };
 
       // Populate cache
-      service.canPerformSiteAction(testUser, 'site-001', 'groups', 'create');
+      service.canPerformSiteAction(testUser, 'site-001', 'users', 'create');
       expect(cache.size()).toBeGreaterThan(0);
 
       // Simulate cache corruption by destroying and recreating
@@ -481,7 +526,7 @@ describe('Integration Tests', () => {
       service.loadPermissions(fullPermissionDocument);
 
       // Service should continue working without cache
-      expect(service.canPerformSiteAction(testUser, 'site-001', 'groups', 'create')).toBe(true);
+      expect(service.canPerformSiteAction(testUser, 'site-001', 'users', 'create')).toBe(true);
     });
   });
 
@@ -521,9 +566,9 @@ describe('Integration Tests', () => {
         authenticatedUser, 
         'main-site',
         [
-          { resource: 'groups', action: 'create' },
+          { resource: 'groups', action: 'create', subResource: 'schools' },
           { resource: 'assignments', action: 'update' },
-          { resource: 'admins', action: 'read' }
+          { resource: 'admins', action: 'read', subResource: 'admin' }
         ]
       );
       
@@ -546,11 +591,11 @@ describe('Integration Tests', () => {
       };
 
       // User logs in and accesses site-001
-      expect(service.canPerformSiteAction(sessionUser, 'site-001', 'groups', 'create')).toBe(true);
+      expect(service.canPerformSiteAction(sessionUser, 'site-001', 'groups', 'update', 'schools')).toBe(true);
       expect(cache.size()).toBeGreaterThan(0);
 
       // User switches to site-002
-      expect(service.canPerformSiteAction(sessionUser, 'site-002', 'groups', 'create')).toBe(false);
+      expect(service.canPerformSiteAction(sessionUser, 'site-002', 'groups', 'create', 'schools')).toBe(false);
       expect(service.canPerformSiteAction(sessionUser, 'site-002', 'users', 'create')).toBe(true);
 
       // User role changes - clear cache
@@ -558,7 +603,7 @@ describe('Integration Tests', () => {
       service.clearUserCache(sessionUser.uid);
 
       // Verify new permissions
-      expect(service.canPerformSiteAction(sessionUser, 'site-001', 'admins', 'create')).toBe(true);
+      expect(service.canPerformSiteAction(sessionUser, 'site-001', 'admins', 'create', 'admin')).toBe(true);
       expect(service.canPerformSiteAction(sessionUser, 'site-002', 'users', 'create')).toBe(false);
     });
   });

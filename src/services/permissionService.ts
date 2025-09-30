@@ -6,8 +6,18 @@ import type {
   PermissionMatrix, 
   PermissionDocument,
   PermissionCheck,
-  BulkPermissionResult
+  BulkPermissionResult,
+  SubResource,
+  GroupSubResource,
+  AdminSubResource
 } from '../types/permissions.js';
+import { 
+  ROLES, 
+  RESOURCES, 
+  ALL_GROUP_SUB_RESOURCES, 
+  ALL_ADMIN_SUB_RESOURCES, 
+  FLAT_RESOURCES 
+} from '../types/constants.js';
 import { CacheService } from './cacheService.js';
 import { VersionHandler } from '../utils/versionHandler.js';
 
@@ -22,11 +32,11 @@ export class PermissionService {
   private cache?: CacheService;
 
   private static readonly ROLE_HIERARCHY: Role[] = [
-    'participant',
-    'research_assistant', 
-    'admin',
-    'site_admin',
-    'super_admin'
+    ROLES.PARTICIPANT,
+    ROLES.RESEARCH_ASSISTANT, 
+    ROLES.ADMIN,
+    ROLES.SITE_ADMIN,
+    ROLES.SUPER_ADMIN
   ];
 
   /**
@@ -75,6 +85,7 @@ export class PermissionService {
    * @returns Deep copy of the permission matrix
    */
   getPermissionMatrix(): PermissionMatrix {
+    // Deep clone to prevent external mutation of internal state
     return JSON.parse(JSON.stringify(this.permissionMatrix));
   }
 
@@ -96,7 +107,49 @@ export class PermissionService {
 
   private isSuperAdmin(user: User): boolean {
     if (!user || !user.roles) return false;
-    return user.roles.some(role => role.role === 'super_admin');
+    return user.roles.some(role => role.role === ROLES.SUPER_ADMIN);
+  }
+
+  private requiresSubResource(resource: Resource): boolean {
+    return resource === RESOURCES.GROUPS || resource === RESOURCES.ADMINS;
+  }
+
+  private isValidSubResource(resource: Resource, subResource: string): boolean {
+    if (resource === RESOURCES.GROUPS) {
+      return ALL_GROUP_SUB_RESOURCES.includes(subResource as GroupSubResource);
+    } else if (resource === RESOURCES.ADMINS) {
+      return ALL_ADMIN_SUB_RESOURCES.includes(subResource as AdminSubResource);
+    }
+    return false;
+  }
+
+  private getActionsForResource(
+    role: Role,
+    resource: Resource,
+    subResource?: SubResource
+  ): Action[] {
+    const rolePermissions = this.permissionMatrix[role];
+    if (!rolePermissions) {
+      return [];
+    }
+
+    const resourcePermissions = rolePermissions[resource];
+    
+    if (resource === RESOURCES.GROUPS || resource === RESOURCES.ADMINS) {
+      if (!subResource) {
+        return [];
+      }
+      
+      if (typeof resourcePermissions === 'object' && !Array.isArray(resourcePermissions)) {
+        return (resourcePermissions as any)[subResource] || [];
+      }
+      return [];
+    } else {
+      if (Array.isArray(resourcePermissions)) {
+        return resourcePermissions;
+      }
+      return [];
+    }
   }
 
   /**
@@ -108,7 +161,7 @@ export class PermissionService {
    */
   getUserSiteRole(user: User, siteId: string): Role | null {
     if (this.isSuperAdmin(user)) {
-      return 'super_admin';
+      return ROLES.SUPER_ADMIN;
     }
 
     const siteRole = user.roles.find(role => role.siteId === siteId);
@@ -139,9 +192,10 @@ export class PermissionService {
    * @param user - User object
    * @param resource - Resource type (groups, users, etc.)
    * @param action - Action type (create, read, update, delete, exclude)
+   * @param subResource - Optional sub-resource (required for groups and admins)
    * @returns True if user can perform the global action
    */
-  canPerformGlobalAction(user: User, resource: Resource, action: Action): boolean {
+  canPerformGlobalAction(user: User, resource: Resource, action: Action, subResource?: SubResource): boolean {
     if (!this.isLoaded) {
       console.warn('Permissions not loaded yet');
       return false;
@@ -155,12 +209,20 @@ export class PermissionService {
       return false;
     }
 
-    const cacheKey = this.cache?.generatePermissionKey(user.uid, '*', resource, action);
+    if (this.requiresSubResource(resource) && !subResource) {
+      return false;
+    }
+
+    if (subResource && !this.isValidSubResource(resource, subResource)) {
+      return false;
+    }
+
+    const cacheKey = this.cache?.generatePermissionKey(user.uid, '*', resource, action, subResource);
     if (cacheKey && this.cache?.has(cacheKey)) {
       return this.cache.get<boolean>(cacheKey) || false;
     }
 
-    const allowedActions = this.permissionMatrix['super_admin']?.[resource] || [];
+    const allowedActions = this.getActionsForResource(ROLES.SUPER_ADMIN, resource, subResource);
     const result = allowedActions.includes(action);
 
     if (cacheKey) {
@@ -178,9 +240,10 @@ export class PermissionService {
    * @param siteId - Site identifier
    * @param resource - Resource type (groups, users, etc.)
    * @param action - Action type (create, read, update, delete, exclude)
+   * @param subResource - Optional sub-resource (required for groups and admins)
    * @returns True if user can perform the action on the resource
    */
-  canPerformSiteAction(user: User, siteId: string, resource: Resource, action: Action): boolean {
+  canPerformSiteAction(user: User, siteId: string, resource: Resource, action: Action, subResource?: SubResource): boolean {
     if (!this.isLoaded) {
       console.warn('Permissions not loaded yet');
       return false;
@@ -190,11 +253,19 @@ export class PermissionService {
       return false;
     }
 
-    if (this.isSuperAdmin(user)) {
-      return this.canPerformGlobalAction(user, resource, action);
+    if (this.requiresSubResource(resource) && !subResource) {
+      return false;
     }
 
-    const cacheKey = this.cache?.generatePermissionKey(user.uid, siteId, resource, action);
+    if (subResource && !this.isValidSubResource(resource, subResource)) {
+      return false;
+    }
+
+    if (this.isSuperAdmin(user)) {
+      return this.canPerformGlobalAction(user, resource, action, subResource);
+    }
+
+    const cacheKey = this.cache?.generatePermissionKey(user.uid, siteId, resource, action, subResource);
     if (cacheKey && this.cache?.has(cacheKey)) {
       return this.cache.get<boolean>(cacheKey) || false;
     }
@@ -207,7 +278,7 @@ export class PermissionService {
       return false;
     }
 
-    const allowedActions = this.permissionMatrix[userRole]?.[resource] || [];
+    const allowedActions = this.getActionsForResource(userRole, resource, subResource);
     const result = allowedActions.includes(action);
 
     if (cacheKey) {
@@ -243,11 +314,12 @@ export class PermissionService {
   }
 
   /**
-   * Gets all resources the user can perform a specific action on within a site.
+   * Gets all flat resources (assignments, users, tasks) the user can perform a specific action on within a site.
+   * Note: For nested resources (groups, admins), use specific sub-resource methods.
    * @param user - User object
    * @param siteId - Site identifier
    * @param action - Action to check (create, read, update, delete, exclude)
-   * @returns Array of accessible resource types
+   * @returns Array of accessible flat resource types
    */
   getAccessibleResources(user: User, siteId: string, action: Action): Resource[] {
     if (!this.isLoaded) {
@@ -255,16 +327,63 @@ export class PermissionService {
       return [];
     }
 
-    const resources: Resource[] = ['groups', 'assignments', 'users', 'admins', 'tasks'];
     const accessibleResources: Resource[] = [];
 
-    for (const resource of resources) {
+    for (const resource of FLAT_RESOURCES) {
       if (this.canPerformSiteAction(user, siteId, resource, action)) {
         accessibleResources.push(resource);
       }
     }
 
     return accessibleResources;
+  }
+
+  /**
+   * Gets all group sub-resources the user can perform a specific action on within a site.
+   * @param user - User object
+   * @param siteId - Site identifier
+   * @param action - Action to check (create, read, update, delete, exclude)
+   * @returns Array of accessible group sub-resources
+   */
+  getAccessibleGroupSubResources(user: User, siteId: string, action: Action): GroupSubResource[] {
+    if (!this.isLoaded) {
+      console.warn('Permissions not loaded yet');
+      return [];
+    }
+
+    const accessibleSubResources: GroupSubResource[] = [];
+
+    for (const subResource of ALL_GROUP_SUB_RESOURCES) {
+      if (this.canPerformSiteAction(user, siteId, RESOURCES.GROUPS, action, subResource)) {
+        accessibleSubResources.push(subResource);
+      }
+    }
+
+    return accessibleSubResources;
+  }
+
+  /**
+   * Gets all admin sub-resources the user can perform a specific action on within a site.
+   * @param user - User object
+   * @param siteId - Site identifier
+   * @param action - Action to check (create, read, update, delete, exclude)
+   * @returns Array of accessible admin sub-resources
+   */
+  getAccessibleAdminSubResources(user: User, siteId: string, action: Action): AdminSubResource[] {
+    if (!this.isLoaded) {
+      console.warn('Permissions not loaded yet');
+      return [];
+    }
+
+    const accessibleSubResources: AdminSubResource[] = [];
+
+    for (const subResource of ALL_ADMIN_SUB_RESOURCES) {
+      if (this.canPerformSiteAction(user, siteId, RESOURCES.ADMINS, action, subResource)) {
+        accessibleSubResources.push(subResource);
+      }
+    }
+
+    return accessibleSubResources;
   }
 
   /**
@@ -282,6 +401,7 @@ export class PermissionService {
       return checks.map(check => ({
         resource: check.resource,
         action: check.action,
+        subResource: check.subResource,
         allowed: false
       }));
     }
@@ -296,7 +416,8 @@ export class PermissionService {
     const results: BulkPermissionResult[] = checks.map(check => ({
       resource: check.resource,
       action: check.action,
-      allowed: this.canPerformSiteAction(user, siteId, check.resource, check.action)
+      subResource: check.subResource,
+      allowed: this.canPerformSiteAction(user, siteId, check.resource, check.action, check.subResource)
     }));
 
     if (cacheKey) {
@@ -309,20 +430,21 @@ export class PermissionService {
   /**
    * Gets all permissions for a specific role.
    * @param role - Role to get permissions for
-   * @returns Object mapping resources to arrays of allowed actions
+   * @returns Permission matrix for the role (nested structure for groups/admins, flat for others)
    */
-  getRolePermissions(role: Role): Record<Resource, Action[]> {
+  getRolePermissions(role: Role): PermissionMatrix[Role] | {} {
     if (!this.isLoaded) {
       console.warn('Permissions not loaded yet');
-      return {} as Record<Resource, Action[]>;
+      return {};
     }
 
     const rolePermissions = this.permissionMatrix[role];
     if (!rolePermissions) {
-      return {} as Record<Resource, Action[]>;
+      return {};
     }
 
-    return { ...rolePermissions } as Record<Resource, Action[]>;
+    // Deep clone to prevent external mutation of internal state
+    return JSON.parse(JSON.stringify(rolePermissions));
   }
 
   /**
@@ -330,15 +452,24 @@ export class PermissionService {
    * @param role - Role to check
    * @param resource - Resource type
    * @param action - Action type
+   * @param subResource - Optional sub-resource (required for groups and admins)
    * @returns True if the role has the permission
    */
-  roleHasPermission(role: Role, resource: Resource, action: Action): boolean {
+  roleHasPermission(role: Role, resource: Resource, action: Action, subResource?: SubResource): boolean {
     if (!this.isLoaded) {
       console.warn('Permissions not loaded yet');
       return false;
     }
 
-    const allowedActions = this.permissionMatrix[role]?.[resource] || [];
+    if (this.requiresSubResource(resource) && !subResource) {
+      return false;
+    }
+
+    if (subResource && !this.isValidSubResource(resource, subResource)) {
+      return false;
+    }
+
+    const allowedActions = this.getActionsForResource(role, resource, subResource);
     return allowedActions.includes(action);
   }
 
@@ -365,7 +496,10 @@ export class PermissionService {
 
   private generateBulkCheckHash(checks: PermissionCheck[]): string {
     const sortedChecks = checks
-      .map(check => `${check.resource}:${check.action}`)
+      .map(check => {
+        const subResStr = check.subResource ? `:${check.subResource}` : '';
+        return `${check.resource}${subResStr}:${check.action}`;
+      })
       .sort()
       .join('|');
     

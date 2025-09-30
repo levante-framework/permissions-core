@@ -5,38 +5,83 @@ import type { PermissionMatrix, PermissionDocument } from '../types/permissions.
 describe('VersionHandler', () => {
   const validPermissionMatrix: PermissionMatrix = {
     'super_admin': {
-      'groups': ['create', 'read', 'update', 'delete', 'exclude'],
+      'groups': {
+        'sites': ['create', 'read', 'update', 'delete', 'exclude'],
+        'schools': ['create', 'read', 'update', 'delete', 'exclude'],
+        'classes': ['create', 'read', 'update', 'delete', 'exclude'],
+        'cohorts': ['create', 'read', 'update', 'delete', 'exclude']
+      },
       'assignments': ['create', 'read', 'update', 'delete', 'exclude'],
       'users': ['create', 'read', 'update', 'delete', 'exclude'],
-      'admins': ['create', 'read', 'update', 'delete', 'exclude'],
+      'admins': {
+        'site_admin': ['create', 'read', 'update', 'delete'],
+        'admin': ['create', 'read', 'update', 'delete'],
+        'research_assistant': ['create', 'read', 'update', 'delete']
+      },
       'tasks': ['create', 'read', 'update', 'delete', 'exclude']
     },
     'site_admin': {
-      'groups': ['create', 'read', 'update', 'delete', 'exclude'],
+      'groups': {
+        'sites': ['read', 'update'],
+        'schools': ['create', 'read', 'update', 'delete', 'exclude'],
+        'classes': ['create', 'read', 'update', 'delete', 'exclude'],
+        'cohorts': ['create', 'read', 'update', 'delete', 'exclude']
+      },
       'assignments': ['create', 'read', 'update', 'delete', 'exclude'],
       'users': ['create', 'read', 'update', 'delete', 'exclude'],
-      'admins': ['create', 'read', 'update', 'delete', 'exclude'],
+      'admins': {
+        'site_admin': ['create', 'read'],
+        'admin': ['create', 'read', 'update', 'delete', 'exclude'],
+        'research_assistant': ['create', 'read', 'update', 'delete']
+      },
       'tasks': ['create', 'read', 'update', 'delete', 'exclude']
     },
     'admin': {
-      'groups': ['create', 'read', 'update'],
-      'assignments': ['create', 'read', 'update'],
+      'groups': {
+        'sites': ['read', 'update'],
+        'schools': ['read', 'update', 'delete'],
+        'classes': ['read', 'update', 'delete'],
+        'cohorts': ['read', 'update', 'delete']
+      },
+      'assignments': ['create', 'read', 'update', 'delete'],
       'users': ['create', 'read', 'update'],
-      'admins': ['read'],
+      'admins': {
+        'site_admin': ['read'],
+        'admin': ['read'],
+        'research_assistant': ['create', 'read']
+      },
       'tasks': ['read']
     },
     'research_assistant': {
-      'groups': ['read'],
+      'groups': {
+        'sites': ['read'],
+        'schools': ['read'],
+        'classes': ['read'],
+        'cohorts': ['read']
+      },
       'assignments': ['read'],
       'users': ['create', 'read'],
-      'admins': ['read'],
+      'admins': {
+        'site_admin': ['read'],
+        'admin': ['read'],
+        'research_assistant': ['read']
+      },
       'tasks': ['read']
     },
     'participant': {
-      'groups': [],
+      'groups': {
+        'sites': [],
+        'schools': [],
+        'classes': [],
+        'cohorts': []
+      },
       'assignments': [],
       'users': [],
-      'admins': [],
+      'admins': {
+        'site_admin': [],
+        'admin': [],
+        'research_assistant': []
+      },
       'tasks': []
     }
   };
@@ -197,14 +242,27 @@ describe('VersionHandler', () => {
     it('should reject invalid action names', () => {
       const invalidMatrix = {
         'admin': {
-          'groups': ['invalid_action']
+          'groups': {
+            'sites': ['invalid_action'],
+            'schools': [],
+            'classes': [],
+            'cohorts': []
+          },
+          'admins': {
+            'site_admin': [],
+            'admin': [],
+            'research_assistant': []
+          },
+          'assignments': [],
+          'users': [],
+          'tasks': []
         }
       };
       
       const result = VersionHandler.validatePermissionMatrix(invalidMatrix as any);
       
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Invalid action: invalid_action for admin.groups');
+      expect(result.errors).toContain('Invalid action: invalid_action for admin.groups.sites');
     });
 
     it('should reject non-object resources', () => {
@@ -218,17 +276,25 @@ describe('VersionHandler', () => {
       expect(result.errors).toContain('Role admin must have resources object');
     });
 
-    it('should reject non-array actions', () => {
+    it('should reject non-object for nested resources', () => {
       const invalidMatrix = {
         'admin': {
-          'groups': 'not an array'
+          'groups': 'not an object',
+          'admins': {
+            'site_admin': [],
+            'admin': [],
+            'research_assistant': []
+          },
+          'assignments': [],
+          'users': [],
+          'tasks': []
         }
       };
       
       const result = VersionHandler.validatePermissionMatrix(invalidMatrix as any);
       
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Actions for admin.groups must be an array');
+      expect(result.errors).toContain('admin.groups must be an object with sub-resources');
     });
   });
 
@@ -351,28 +417,30 @@ describe('VersionHandler', () => {
       expect(result.errors).toHaveLength(0);
     });
 
-    it('should handle role with empty resources', () => {
+    it('should reject role with empty resources', () => {
       const matrixWithEmptyRole = {
         'admin': {}
       };
       
-      const result = VersionHandler.validatePermissionMatrix(matrixWithEmptyRole);
+      const result = VersionHandler.validatePermissionMatrix(matrixWithEmptyRole as any);
       
+      // Empty role is technically valid (just has no resources)
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
 
-    it('should handle resource with empty actions', () => {
-      const matrixWithEmptyActions = {
+    it('should reject groups resource with invalid structure', () => {
+      const matrixWithInvalidGroups = {
         'admin': {
           'groups': []
         }
       };
       
-      const result = VersionHandler.validatePermissionMatrix(matrixWithEmptyActions);
+      const result = VersionHandler.validatePermissionMatrix(matrixWithInvalidGroups as any);
       
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+      // groups must be an object with sub-resources, not an array
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('admin.groups must be an object with sub-resources');
     });
   });
 });

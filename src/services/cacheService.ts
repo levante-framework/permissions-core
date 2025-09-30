@@ -85,9 +85,13 @@ export class CacheService {
    * @param siteId - Site identifier
    * @param resource - Resource type
    * @param action - Action type
+   * @param subResource - Optional sub-resource type
    * @returns Formatted cache key
    */
-  generatePermissionKey(userId: string, siteId: string, resource: string, action: string): string {
+  generatePermissionKey(userId: string, siteId: string, resource: string, action: string, subResource?: string): string {
+    if (subResource) {
+      return `${userId}-${siteId}-${resource}-${subResource}-${action}`;
+    }
     return `${userId}-${siteId}-${resource}-${action}`;
   }
 
