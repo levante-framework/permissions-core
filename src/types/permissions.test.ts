@@ -139,7 +139,7 @@ describe('Permission Types', () => {
             'users': ['read']
           }
         },
-        version: '1.0.0',
+        version: '1.1.0',
         updatedAt: '2025-01-01T00:00:00Z'
       };
 

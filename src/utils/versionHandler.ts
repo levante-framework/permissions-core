@@ -23,9 +23,9 @@ export interface MigrationResult {
 }
 
 export class VersionHandler {
-  private static readonly CURRENT_VERSION = '1.0.0';
-  private static readonly SUPPORTED_VERSIONS = ['1.0.0'];
-  private static readonly COMPATIBLE_VERSIONS = ['1.0.0'];
+  private static readonly CURRENT_VERSION = '1.1.0';
+  private static readonly SUPPORTED_VERSIONS = ['1.1.0'];
+  private static readonly COMPATIBLE_VERSIONS = ['1.1.0'];
 
   static checkCompatibility(version: string): VersionCompatibility {
     const isCompatible = this.COMPATIBLE_VERSIONS.includes(version);
@@ -165,7 +165,7 @@ export class VersionHandler {
 
     try {
       switch (fromVersion) {
-        case '1.0.0':
+        case '1.1.0':
           migratedMatrix = matrix as PermissionMatrix;
           break;
         

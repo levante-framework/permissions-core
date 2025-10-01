@@ -98,7 +98,7 @@ describe('Integration Tests', () => {
 
   const fullPermissionDocument: PermissionDocument = {
     permissions: fullPermissionMatrix,
-    version: '1.0.0',
+    version: '1.1.0',
     updatedAt: '2025-01-01T00:00:00Z'
   };
 
@@ -119,7 +119,7 @@ describe('Integration Tests', () => {
       expect(loadResult.success).toBe(true);
       expect(loadResult.errors).toHaveLength(0);
       expect(service.isPermissionsLoaded()).toBe(true);
-      expect(service.getVersion()).toBe('1.0.0');
+      expect(service.getVersion()).toBe('1.1.0');
       
       // Verify matrix is properly loaded
       const matrix = service.getPermissionMatrix();
@@ -153,7 +153,7 @@ describe('Integration Tests', () => {
     it('should handle invalid documents through the full pipeline', () => {
       const invalidDocument = {
         permissions: 'invalid',
-        version: '1.0.0',
+        version: '1.1.0',
         updatedAt: '2025-01-01T00:00:00Z'
       } as any;
       
@@ -441,7 +441,7 @@ describe('Integration Tests', () => {
   describe('Version Migration Scenarios', () => {
     it('should handle version compatibility checking', () => {
       // Test current version compatibility
-      const compatibility = VersionHandler.checkCompatibility('1.0.0');
+      const compatibility = VersionHandler.checkCompatibility('1.1.0');
       expect(compatibility.isCompatible).toBe(true);
       expect(compatibility.requiresMigration).toBe(false);
 
@@ -463,8 +463,8 @@ describe('Integration Tests', () => {
     });
 
     it('should handle migration workflow simulation', () => {
-      // Simulate a migration scenario (even though we only have v1.0.0)
-      const migrationResult = VersionHandler.migratePermissionMatrix(fullPermissionMatrix, '1.0.0');
+      // Simulate a migration scenario (even though we only have v1.1.0)
+      const migrationResult = VersionHandler.migratePermissionMatrix(fullPermissionMatrix, '1.1.0');
       
       expect(migrationResult.success).toBe(true);
       expect(migrationResult.migratedMatrix).toEqual(fullPermissionMatrix);
@@ -473,7 +473,7 @@ describe('Integration Tests', () => {
       // Test that migrated matrix works with permission service
       const migratedDocument: PermissionDocument = {
         permissions: migrationResult.migratedMatrix,
-        version: '1.0.0',
+        version: '1.1.0',
         updatedAt: new Date().toISOString()
       };
 
