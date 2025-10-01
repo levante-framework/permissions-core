@@ -88,18 +88,18 @@ describe('VersionHandler', () => {
 
   const validPermissionDocument: PermissionDocument = {
     permissions: validPermissionMatrix,
-    version: '1.0.0',
+    version: '1.1.0',
     updatedAt: '2025-01-01T00:00:00Z'
   };
 
   describe('checkCompatibility', () => {
     it('should return compatible for supported version', () => {
-      const result = VersionHandler.checkCompatibility('1.0.0');
+      const result = VersionHandler.checkCompatibility('1.1.0');
       
       expect(result.isCompatible).toBe(true);
       expect(result.requiresMigration).toBe(false);
-      expect(result.currentVersion).toBe('1.0.0');
-      expect(result.supportedVersions).toContain('1.0.0');
+      expect(result.currentVersion).toBe('1.1.0');
+      expect(result.supportedVersions).toContain('1.1.0');
     });
 
     it('should return incompatible for unsupported version', () => {
@@ -107,7 +107,7 @@ describe('VersionHandler', () => {
       
       expect(result.isCompatible).toBe(false);
       expect(result.requiresMigration).toBe(false);
-      expect(result.currentVersion).toBe('1.0.0');
+      expect(result.currentVersion).toBe('1.1.0');
     });
 
     it('should handle empty version string', () => {
@@ -146,7 +146,7 @@ describe('VersionHandler', () => {
 
     it('should reject document missing permissions', () => {
       const invalidDoc = {
-        version: '1.0.0',
+        version: '1.1.0',
         updatedAt: '2025-01-01T00:00:00Z'
       };
       
@@ -171,7 +171,7 @@ describe('VersionHandler', () => {
     it('should reject document missing updatedAt', () => {
       const invalidDoc = {
         permissions: validPermissionMatrix,
-        version: '1.0.0'
+        version: '1.1.0'
       };
       
       const result = VersionHandler.validatePermissionDocument(invalidDoc);
@@ -183,7 +183,7 @@ describe('VersionHandler', () => {
     it('should reject document with non-object permissions', () => {
       const invalidDoc = {
         permissions: 'not an object',
-        version: '1.0.0',
+        version: '1.1.0',
         updatedAt: '2025-01-01T00:00:00Z'
       };
       
@@ -299,8 +299,8 @@ describe('VersionHandler', () => {
   });
 
   describe('migratePermissionMatrix', () => {
-    it('should successfully migrate v1.0.0 matrix', () => {
-      const result = VersionHandler.migratePermissionMatrix(validPermissionMatrix, '1.0.0');
+    it('should successfully migrate v1.1.0 matrix', () => {
+      const result = VersionHandler.migratePermissionMatrix(validPermissionMatrix, '1.1.0');
       
       expect(result.success).toBe(true);
       expect(result.migratedMatrix).toEqual(validPermissionMatrix);
@@ -321,14 +321,14 @@ describe('VersionHandler', () => {
         }
       };
       
-      const result = VersionHandler.migratePermissionMatrix(invalidMatrix, '1.0.0');
+      const result = VersionHandler.migratePermissionMatrix(invalidMatrix, '1.1.0');
       
       expect(result.success).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
     });
 
     it('should handle migration errors gracefully', () => {
-      const result = VersionHandler.migratePermissionMatrix(null, '1.0.0');
+      const result = VersionHandler.migratePermissionMatrix(null, '1.1.0');
       
       expect(result.success).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
@@ -341,14 +341,14 @@ describe('VersionHandler', () => {
       
       expect(result.success).toBe(true);
       expect(result.permissionMatrix).toEqual(validPermissionMatrix);
-      expect(result.version).toBe('1.0.0');
+      expect(result.version).toBe('1.1.0');
       expect(result.errors).toHaveLength(0);
     });
 
     it('should fail for invalid document structure', () => {
       const invalidDoc = {
         permissions: 'invalid',
-        version: '1.0.0'
+        version: '1.1.0'
       };
       
       const result = VersionHandler.processPermissionDocument(invalidDoc);
@@ -366,7 +366,7 @@ describe('VersionHandler', () => {
       const result = VersionHandler.processPermissionDocument(incompatibleDoc);
       
       expect(result.success).toBe(false);
-      expect(result.errors).toContain('Incompatible version: 2.0.0. Supported versions: 1.0.0');
+      expect(result.errors).toContain('Incompatible version: 2.0.0. Supported versions: 1.1.0');
     });
 
     it('should fail for invalid permission matrix', () => {
@@ -376,7 +376,7 @@ describe('VersionHandler', () => {
             'groups': ['read']
           }
         },
-        version: '1.0.0',
+        version: '1.1.0',
         updatedAt: '2025-01-01T00:00:00Z'
       };
       
@@ -387,23 +387,23 @@ describe('VersionHandler', () => {
     });
 
     it('should handle migration scenarios', () => {
-      // For now, v1.0.0 doesn't require migration, but test the structure
+      // For now, v1.1.0 doesn't require migration, but test the structure
       const result = VersionHandler.processPermissionDocument(validPermissionDocument);
       
       expect(result.success).toBe(true);
-      expect(result.warnings).toHaveLength(0); // No migration needed for 1.0.0
+      expect(result.warnings).toHaveLength(0); // No migration needed for 1.1.0
     });
   });
 
   describe('utility methods', () => {
     it('should return current version', () => {
       const version = VersionHandler.getCurrentVersion();
-      expect(version).toBe('1.0.0');
+      expect(version).toBe('1.1.0');
     });
 
     it('should return supported versions', () => {
       const versions = VersionHandler.getSupportedVersions();
-      expect(versions).toContain('1.0.0');
+      expect(versions).toContain('1.1.0');
       expect(Array.isArray(versions)).toBe(true);
     });
   });

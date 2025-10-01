@@ -98,7 +98,7 @@ describe('PermissionService', () => {
 
   const validPermissionDocument: PermissionDocument = {
     permissions: validPermissionMatrix,
-    version: '1.0.0',
+    version: '1.1.0',
     updatedAt: '2025-01-01T00:00:00Z'
   };
 
@@ -182,13 +182,13 @@ describe('PermissionService', () => {
       expect(result.success).toBe(true);
       expect(result.errors).toHaveLength(0);
       expect(service.isPermissionsLoaded()).toBe(true);
-      expect(service.getVersion()).toBe('1.0.0');
+      expect(service.getVersion()).toBe('1.1.0');
     });
 
     it('should reject invalid permission document', () => {
       const invalidDoc = {
         permissions: 'invalid',
-        version: '1.0.0'
+        version: '1.1.0'
       } as any;
       
       const result = service.loadPermissions(invalidDoc);
