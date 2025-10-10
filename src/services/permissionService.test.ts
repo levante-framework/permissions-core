@@ -735,4 +735,116 @@ describe('PermissionService', () => {
       });
     });
   });
+
+  describe('decision reasons', () => {
+    it('reports NOT_LOADED when permissions are unavailable', () => {
+      const evaluation = (service as any).evaluateSiteActionDetailed(
+        adminUser,
+        'site1',
+        'users',
+        'read',
+        undefined,
+        true
+      );
+
+      expect(evaluation.allowed).toBe(false);
+      expect(evaluation.detail).toEqual({ decision: 'indeterminate', reason: 'NOT_LOADED' });
+    });
+
+    it('reports MISSING_PARAMS when required arguments are absent', () => {
+      service.loadPermissions(validPermissionDocument);
+
+      const evaluation = (service as any).evaluateSiteActionDetailed(
+        adminUser,
+        null,
+        'users',
+        'read',
+        undefined,
+        true
+      );
+
+      expect(evaluation.allowed).toBe(false);
+      expect(evaluation.detail).toEqual({ decision: 'indeterminate', reason: 'MISSING_PARAMS' });
+    });
+
+    it('reports REQUIRES_SUBRESOURCE when nested resource is missing', () => {
+      service.loadPermissions(validPermissionDocument);
+
+      const evaluation = (service as any).evaluateSiteActionDetailed(
+        adminUser,
+        'site1',
+        'groups',
+        'read',
+        undefined,
+        true
+      );
+
+      expect(evaluation.allowed).toBe(false);
+      expect(evaluation.detail).toEqual({ decision: 'indeterminate', reason: 'REQUIRES_SUBRESOURCE' });
+    });
+
+    it('reports INVALID_SUBRESOURCE when nested resource is invalid', () => {
+      service.loadPermissions(validPermissionDocument);
+
+      const evaluation = (service as any).evaluateSiteActionDetailed(
+        adminUser,
+        'site1',
+        'groups',
+        'read',
+        'invalid_subresource' as any,
+        true
+      );
+
+      expect(evaluation.allowed).toBe(false);
+      expect(evaluation.detail).toEqual({ decision: 'indeterminate', reason: 'INVALID_SUBRESOURCE' });
+    });
+
+    it('reports NO_ROLE when user lacks site assignment', () => {
+      service.loadPermissions(validPermissionDocument);
+
+      const evaluation = (service as any).evaluateSiteActionDetailed(
+        adminUser,
+        'missing-site',
+        'users',
+        'read',
+        undefined,
+        true
+      );
+
+      expect(evaluation.allowed).toBe(false);
+      expect(evaluation.detail).toEqual({ decision: 'deny', reason: 'NO_ROLE' });
+    });
+
+    it('reports NOT_ALLOWED when role lacks action permission', () => {
+      service.loadPermissions(validPermissionDocument);
+
+      const evaluation = (service as any).evaluateSiteActionDetailed(
+        researchAssistantUser,
+        'site1',
+        'users',
+        'update',
+        undefined,
+        true
+      );
+
+      expect(evaluation.allowed).toBe(false);
+      expect(evaluation.detail).toEqual({ decision: 'deny', reason: 'NOT_ALLOWED' });
+    });
+
+    it('reports ALLOWED when permission check succeeds', () => {
+      service.loadPermissions(validPermissionDocument);
+
+      const evaluation = (service as any).evaluateSiteActionDetailed(
+        adminUser,
+        'site1',
+        'users',
+        'read',
+        undefined,
+        true
+      );
+
+      expect(evaluation.allowed).toBe(true);
+      expect(evaluation.detail).toEqual({ decision: 'allow', reason: 'ALLOWED' });
+    });
+  });
 });
