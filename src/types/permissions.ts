@@ -28,6 +28,12 @@ export interface PermissionDecisionDetail {
   reason: PermissionReason;
 }
 
+export type LoggingMode = 'off' | 'baseline' | 'debug';
+
+export interface LoggingModeConfig {
+  mode?: LoggingMode;
+}
+
 export interface UserRole {
   siteId: string;
   role: Role;

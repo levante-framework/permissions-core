@@ -10,7 +10,8 @@ import type {
   SubResource,
   GroupSubResource,
   AdminSubResource,
-  PermissionDecisionDetail
+  PermissionDecisionDetail,
+  LoggingModeConfig
 } from '../types/permissions.js';
 import { 
   ROLES, 
@@ -31,6 +32,7 @@ export class PermissionService {
   private version: string = '';
   private isLoaded: boolean = false;
   private cache?: CacheService;
+  private loggingConfig: LoggingModeConfig;
 
   private static readonly ROLE_HIERARCHY: Role[] = [
     ROLES.PARTICIPANT,
@@ -43,9 +45,13 @@ export class PermissionService {
   /**
    * Creates a new PermissionService instance.
    * @param cacheService - Optional cache service for performance optimization
+   * @param loggingConfig - Runtime logging configuration (defaults to off when omitted; typically sourced from env/remote config)
    */
-  constructor(cacheService?: CacheService) {
+  constructor(cacheService?: CacheService, loggingConfig?: LoggingModeConfig) {
     this.cache = cacheService;
+    this.loggingConfig = {
+      mode: loggingConfig?.mode ?? 'off'
+    };
   }
 
   /**
@@ -365,7 +371,7 @@ export class PermissionService {
   }
 
   private shouldComputeDecisionDetails(): boolean {
-    return false;
+    return this.loggingConfig.mode !== 'off';
   }
 
   /**

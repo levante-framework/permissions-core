@@ -175,6 +175,23 @@ describe('PermissionService', () => {
     });
   });
 
+  describe('logging configuration', () => {
+    it('defaults to off when not provided', () => {
+      const defaultService = new PermissionService();
+      expect((defaultService as any).shouldComputeDecisionDetails()).toBe(false);
+    });
+
+    it('remains off when explicitly set to off', () => {
+      const serviceWithExplicitOff = new PermissionService(undefined, { mode: 'off' });
+      expect((serviceWithExplicitOff as any).shouldComputeDecisionDetails()).toBe(false);
+    });
+
+    it('enables reason evaluation when mode is debug', () => {
+      const serviceWithDebug = new PermissionService(undefined, { mode: 'debug' });
+      expect((serviceWithDebug as any).shouldComputeDecisionDetails()).toBe(true);
+    });
+  });
+
   describe('permission loading', () => {
     it('should load valid permission document successfully', () => {
       const result = service.loadPermissions(validPermissionDocument);

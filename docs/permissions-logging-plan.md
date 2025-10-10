@@ -12,11 +12,11 @@
 
 ## Phase 2 — Runtime Logging Controls
 
-- [ ] Introduce a logging configuration object (e.g., `LoggingModeConfig`) that captures `mode: 'off' | 'baseline' | 'debug'`, defaulting to `off` when omitted.
-- [ ] Decide where the config originates (env variable, Firestore doc, Remote Config) and document the retrieval strategy in code comments.
-- [ ] Ensure `PermissionService` accepts the config via constructor, merging with defaults so missing fields do not enable logging unexpectedly.
-- [ ] When logging is disabled (`mode === 'off'`), short-circuit before allocating log payloads or computing reasons.
-- [ ] Add tests (or extend existing ones) that assert logging stays dormant when the config resolves to `off`.
+- [x] Introduce a logging configuration object (e.g., `LoggingModeConfig`) that captures `mode: 'off' | 'baseline' | 'debug'`, defaulting to `off` when omitted.
+- [x] Decide where the config originates (env variable, Firestore doc, Remote Config) and document the retrieval strategy in code comments.
+- [x] Ensure `PermissionService` accepts the config via constructor, merging with defaults so missing fields do not enable logging unexpectedly.
+- [x] When logging is disabled (`mode === 'off'`), short-circuit before allocating log payloads or computing reasons.
+- [x] Add tests (or extend existing ones) that assert logging stays dormant when the config resolves to `off`.
 
 ## Phase 3 — Event Sink Integration
 

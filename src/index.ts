@@ -16,6 +16,11 @@ export type {
   PermissionCheck,
   BulkPermissionResult,
   PermissionServiceConfig,
+  PermissionDecision,
+  PermissionReason,
+  PermissionDecisionDetail,
+  LoggingMode,
+  LoggingModeConfig,
   VersionInfo,
   PermissionDocument
 } from './types/permissions.js';
