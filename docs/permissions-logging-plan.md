@@ -20,11 +20,11 @@
 
 ## Phase 3 — Event Sink Integration
 
-- [ ] Define the `PermEventSink` interface with `isEnabled(): boolean` and `emit(evt: PermEvent): void`.
-- [ ] Shape the `PermEvent` payload to include `{ decision, reason, action, resourceKey, siteId, userId?, timestamp, environment }`, leaving room for future fields (like `requestId`).
-- [ ] Provide a default `NoopSink` implementation used when no sink is supplied.
-- [ ] Update `PermissionService` to accept an optional sink via constructor (defaulting to `NoopSink`) and to invoke it when `sink.isEnabled()` returns true.
-- [ ] Ensure `emit` calls are fire-and-forget; the service should remain synchronous for callers.
+- [x] Define the `PermEventSink` interface with `isEnabled(): boolean` and `emit(evt: PermEvent): void`.
+- [x] Shape the `PermEvent` payload to include `{ decision, reason, action, resourceKey, siteId, userId?, timestamp, environment }`, leaving room for future fields (like `requestId`).
+- [x] Provide a default `NoopSink` implementation used when no sink is supplied.
+- [x] Update `PermissionService` to accept an optional sink via constructor (defaulting to `NoopSink`) and to invoke it when `sink.isEnabled()` returns true.
+- [x] Ensure `emit` calls are fire-and-forget; the service should remain synchronous for callers.
 
 ## Phase 4 — Logging Destinations & Hygiene
 

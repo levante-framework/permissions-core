@@ -6,7 +6,9 @@ import type {
   PermissionDocument, 
   PermissionMatrix,
   PermissionCheck,
-  Role 
+  Role,
+  PermEvent,
+  PermEventSink
 } from '../types/permissions.js';
 
 describe('PermissionService', () => {
@@ -189,6 +191,54 @@ describe('PermissionService', () => {
     it('enables reason evaluation when mode is debug', () => {
       const serviceWithDebug = new PermissionService(undefined, { mode: 'debug' });
       expect((serviceWithDebug as any).shouldComputeDecisionDetails()).toBe(true);
+    });
+  });
+
+  describe('event sink integration', () => {
+    it('emits event details when sink is enabled', () => {
+      const events: PermEvent[] = [];
+      const sink: PermEventSink = {
+        isEnabled: () => true,
+        emit: (event) => {
+          events.push(event);
+        }
+      };
+
+      const sinkCache = new CacheService(1000);
+      const serviceWithSink = new PermissionService(sinkCache, { mode: 'debug' }, sink);
+      serviceWithSink.loadPermissions(validPermissionDocument);
+
+      const allowed = serviceWithSink.canPerformSiteAction(adminUser, 'site1', 'users', 'read');
+      expect(allowed).toBe(true);
+      expect(events).toHaveLength(1);
+
+      const event = events[0];
+      expect(event.decision).toBe('allow');
+      expect(event.reason).toBe('ALLOWED');
+      expect(event.userId).toBe(adminUser.uid);
+      expect(event.siteId).toBe('site1');
+      expect(event.resource).toBe('users');
+      expect(event.action).toBe('read');
+      expect(event.environment === 'backend' || event.environment === 'frontend').toBe(true);
+
+      sinkCache.destroy();
+    });
+
+    it('does not emit when sink reports disabled', () => {
+      const events: PermEvent[] = [];
+      const sink: PermEventSink = {
+        isEnabled: () => false,
+        emit: (event) => {
+          events.push(event);
+        }
+      };
+
+      const serviceWithSink = new PermissionService(undefined, { mode: 'debug' }, sink);
+      serviceWithSink.loadPermissions(validPermissionDocument);
+
+      const allowed = serviceWithSink.canPerformSiteAction(adminUser, 'site1', 'users', 'read');
+      expect(allowed).toBe(true);
+      expect(events).toHaveLength(0);
     });
   });
 

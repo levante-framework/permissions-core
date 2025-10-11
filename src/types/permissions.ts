@@ -34,6 +34,24 @@ export interface LoggingModeConfig {
   mode?: LoggingMode;
 }
 
+export interface PermEvent {
+  decision: PermissionDecision;
+  reason: PermissionReason;
+  action?: Action;
+  resource?: Resource;
+  subResource?: SubResource;
+  resourceKey?: string;
+  siteId?: string;
+  userId?: string;
+  timestamp: number;
+  environment: 'frontend' | 'backend';
+}
+
+export interface PermEventSink {
+  isEnabled(): boolean;
+  emit(event: PermEvent): void;
+}
+
 export interface UserRole {
   siteId: string;
   role: Role;

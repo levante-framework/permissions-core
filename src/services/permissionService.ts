@@ -11,8 +11,15 @@ import type {
   GroupSubResource,
   AdminSubResource,
   PermissionDecisionDetail,
-  LoggingModeConfig
+  LoggingModeConfig,
+  PermEvent,
+  PermEventSink
 } from '../types/permissions.js';
+export const NoopPermEventSink: PermEventSink = Object.freeze({
+  isEnabled: () => false,
+  emit: () => {}
+});
+
 import { 
   ROLES, 
   RESOURCES, 
@@ -33,6 +40,7 @@ export class PermissionService {
   private isLoaded: boolean = false;
   private cache?: CacheService;
   private loggingConfig: LoggingModeConfig;
+  private sink: PermEventSink;
 
   private static readonly ROLE_HIERARCHY: Role[] = [
     ROLES.PARTICIPANT,
@@ -47,11 +55,12 @@ export class PermissionService {
    * @param cacheService - Optional cache service for performance optimization
    * @param loggingConfig - Runtime logging configuration (defaults to off when omitted; typically sourced from env/remote config)
    */
-  constructor(cacheService?: CacheService, loggingConfig?: LoggingModeConfig) {
+  constructor(cacheService?: CacheService, loggingConfig?: LoggingModeConfig, sink: PermEventSink = NoopPermEventSink) {
     this.cache = cacheService;
     this.loggingConfig = {
       mode: loggingConfig?.mode ?? 'off'
     };
+    this.sink = sink ?? NoopPermEventSink;
   }
 
   /**
@@ -207,8 +216,21 @@ export class PermissionService {
    * @returns True if user can perform the global action
    */
   canPerformGlobalAction(user: User, resource: Resource, action: Action, subResource?: SubResource): boolean {
-    const includeReason = this.shouldComputeDecisionDetails();
+    const sinkEnabled = this.sink.isEnabled();
+    const includeReason = sinkEnabled && this.shouldComputeDecisionDetails();
     const evaluation = this.evaluateGlobalActionDetailed(user, resource, action, subResource, includeReason);
+
+    if (sinkEnabled && evaluation.detail) {
+      this.emitPermissionEvent({
+        detail: evaluation.detail,
+        user,
+        siteId: '*',
+        resource,
+        action,
+        subResource
+      });
+    }
+
     return evaluation.allowed;
   }
 
@@ -224,8 +246,21 @@ export class PermissionService {
    * @returns True if user can perform the action on the resource
    */
   canPerformSiteAction(user: User, siteId: string, resource: Resource, action: Action, subResource?: SubResource): boolean {
-    const includeReason = this.shouldComputeDecisionDetails();
+    const sinkEnabled = this.sink.isEnabled();
+    const includeReason = sinkEnabled && this.shouldComputeDecisionDetails();
     const evaluation = this.evaluateSiteActionDetailed(user, siteId, resource, action, subResource, includeReason);
+
+    if (sinkEnabled && evaluation.detail) {
+      this.emitPermissionEvent({
+        detail: evaluation.detail,
+        user,
+        siteId,
+        resource,
+        action,
+        subResource
+      });
+    }
+
     return evaluation.allowed;
   }
 
@@ -370,8 +405,53 @@ export class PermissionService {
     };
   }
 
+  private emitPermissionEvent(params: {
+    detail?: PermissionDecisionDetail;
+    user?: User | null;
+    siteId?: string | null;
+    resource?: Resource | null;
+    action?: Action | null;
+    subResource?: SubResource;
+  }): void {
+    const { detail, user, siteId, resource, action, subResource } = params;
+
+    if (!detail) {
+      return;
+    }
+
+    const event: PermEvent = {
+      decision: detail.decision,
+      reason: detail.reason,
+      action: action ?? undefined,
+      resource: resource ?? undefined,
+      subResource,
+      resourceKey: this.buildResourceKey(resource, subResource),
+      siteId: siteId ?? undefined,
+      userId: user?.uid,
+      timestamp: Date.now(),
+      environment: this.detectEnvironment()
+    };
+
+    try {
+      this.sink.emit(event);
+    } catch (error) {
+      console.warn('PermissionService logging sink failed to emit event', error);
+    }
+  }
+
   private shouldComputeDecisionDetails(): boolean {
     return this.loggingConfig.mode !== 'off';
+  }
+
+  private buildResourceKey(resource?: Resource | null, subResource?: SubResource): string | undefined {
+    if (!resource) {
+      return undefined;
+    }
+    return subResource ? `${resource}:${subResource}` : resource;
+  }
+
+  private detectEnvironment(): 'frontend' | 'backend' {
+    return typeof window === 'undefined' ? 'backend' : 'frontend';
   }
 
   /**

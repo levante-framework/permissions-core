@@ -21,6 +21,8 @@ export type {
   PermissionDecisionDetail,
   LoggingMode,
   LoggingModeConfig,
+  PermEvent,
+  PermEventSink,
   VersionInfo,
   PermissionDocument
 } from './types/permissions.js';
