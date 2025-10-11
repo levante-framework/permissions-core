@@ -240,6 +240,20 @@ describe('PermissionService', () => {
       expect(allowed).toBe(true);
       expect(events).toHaveLength(0);
     });
+
+    it('swallows sink errors to keep permission checks synchronous', () => {
+      const sink: PermEventSink = {
+        isEnabled: () => true,
+        emit: () => {
+          throw new Error('sink failure');
+        }
+      };
+
+      const serviceWithFaultySink = new PermissionService(undefined, { mode: 'debug' }, sink);
+      serviceWithFaultySink.loadPermissions(validPermissionDocument);
+
+      expect(() => serviceWithFaultySink.canPerformSiteAction(adminUser, 'site1', 'users', 'read')).not.toThrow();
+    });
   });
 
   describe('permission loading', () => {

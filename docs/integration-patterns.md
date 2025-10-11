@@ -10,6 +10,7 @@ This document provides detailed integration patterns for using the permissions s
 - [Real-time Updates](#real-time-updates)
 - [Multi-site Architecture](#multi-site-architecture)
 - [Testing Strategies](#testing-strategies)
+- [Permission Decision Logging](#permission-decision-logging)
 
 ## Vue SPA Integration
 
@@ -760,6 +761,61 @@ export const deleteGroup = onCall(async (request) => {
   }
 });
 ```
+
+## Permission Decision Logging
+
+Permission logging is optional and controlled through `LoggingModeConfig`. Provide a sink suited to your runtime and keep event payloads de-identified.
+
+### Backend (Firestore) Sink
+
+```typescript
+import { PermissionService, CacheService } from 'permissions-service';
+import { getFirestore } from 'firebase-admin/firestore';
+
+const cache = new CacheService();
+const loggingConfig = { mode: 'baseline' as const };
+
+const db = getFirestore();
+
+const FirestoreSink = {
+  isEnabled: () => loggingConfig.mode !== 'off',
+  emit: (event) => {
+    setImmediate(async () => {
+      await db.collection('permission_events').add({
+        ...event,
+        expireAt: Date.now() + 1000 * 60 * 60 * 24 * 90 // 90 days
+      });
+    });
+  }
+};
+
+const permissions = new PermissionService(cache, loggingConfig, FirestoreSink);
+```
+
+### Frontend (Navigator Beacon) Sink
+
+```typescript
+import { PermissionService, CacheService } from 'permissions-service';
+
+const cache = new CacheService();
+const loggingConfig = { mode: 'baseline' as const };
+
+const BrowserSink = {
+  isEnabled: () => loggingConfig.mode !== 'off',
+  emit: (event) => {
+    const { userId, ...sanitized } = event; // Strip identifiers if policy requires
+    navigator.sendBeacon('/api/permission-log', JSON.stringify(sanitized));
+  }
+};
+
+export const permissions = new PermissionService(cache, loggingConfig, BrowserSink);
+```
+
+### Operational Notes
+
+- Keep payloads de-identified—avoid recording IP address, user agent, or other volatile identifiers.
+- Use `'debug'` mode sparingly for incident response; revert to `'baseline'` or `'off'` for normal operation.
+- Aggregate counters/dashboards are intentionally deferred; rely on raw event storage with TTL (Firestore TTL, BigQuery partition expiry, etc.).
 
 ## Firestore Security Rules
 

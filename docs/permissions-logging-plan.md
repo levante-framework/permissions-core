@@ -28,7 +28,7 @@
 
 ## Phase 4 — Logging Destinations & Hygiene
 
-- [ ] Verify the external sink(s) supplied to `PermissionService` honor the synchronous `emit` contract while handling async work internally.
-- [ ] Supply reference sink patterns in documentation (e.g., Firestore, `navigator.sendBeacon`) while keeping the core package agnostic about environment.
-- [ ] Document that emitted events remain de-identified (no IP, UA, etc.) and describe how to toggle modes plus example sink wiring.
-- [ ] Defer aggregate counters or dashboards; note in README that trend monitoring is out of scope for this iteration.
+- [x] Verify the external sink(s) supplied to `PermissionService` honor the synchronous `emit` contract while handling async work internally.
+- [x] Supply reference sink patterns in documentation (e.g., Firestore, `navigator.sendBeacon`) while keeping the core package agnostic about environment.
+- [x] Document that emitted events remain de-identified (no IP, UA, etc.) and describe how to toggle modes plus example sink wiring.
+- [x] Defer aggregate counters or dashboards; note in README that trend monitoring is out of scope for this iteration.
