@@ -1,6 +1,6 @@
 {
   "name": "@levante-framework/permissions-core",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Shared permissions service for front-end and back-end",
   "type": "module",
   "main": "./dist/index.js",
@@ -19,7 +19,8 @@
     "dev": "tsc --watch",
     "test": "vitest",
     "test:run": "vitest run",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
   },
   "keywords": [
     "permissions",
