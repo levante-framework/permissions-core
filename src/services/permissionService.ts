@@ -1,4 +1,4 @@
-import type { 
+import type {
   User, 
   Role, 
   Resource, 
@@ -16,7 +16,7 @@ import type {
   PermEventSink
 } from '../types/permissions.js';
 
-import { 
+import {
   ROLES, 
   RESOURCES, 
   ALL_GROUP_SUB_RESOURCES, 
@@ -26,7 +26,7 @@ import {
 import { CacheService } from './cacheService.js';
 import { VersionHandler } from '../utils/versionHandler.js';
 
-export const NoopPermEventSink: PermEventSink = Object.freeze({
+const NoopPermEventSink: PermEventSink = Object.freeze({
   isEnabled: () => false,
   emit: () => {}
 });
