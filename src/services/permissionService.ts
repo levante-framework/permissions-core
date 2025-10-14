@@ -1,4 +1,4 @@
-import type { 
+import type {
   User, 
   Role, 
   Resource, 
@@ -9,9 +9,14 @@ import type {
   BulkPermissionResult,
   SubResource,
   GroupSubResource,
-  AdminSubResource
+  AdminSubResource,
+  PermissionDecisionDetail,
+  LoggingModeConfig,
+  PermEvent,
+  PermEventSink
 } from '../types/permissions.js';
-import { 
+
+import {
   ROLES, 
   RESOURCES, 
   ALL_GROUP_SUB_RESOURCES, 
@@ -20,6 +25,11 @@ import {
 } from '../types/constants.js';
 import { CacheService } from './cacheService.js';
 import { VersionHandler } from '../utils/versionHandler.js';
+
+const NoopPermEventSink: PermEventSink = Object.freeze({
+  isEnabled: () => false,
+  emit: () => {}
+});
 
 /**
  * Service for managing resource-based permissions in a multi-site environment.
@@ -30,6 +40,8 @@ export class PermissionService {
   private version: string = '';
   private isLoaded: boolean = false;
   private cache?: CacheService;
+  private loggingConfig: LoggingModeConfig;
+  private sink: PermEventSink;
 
   private static readonly ROLE_HIERARCHY: Role[] = [
     ROLES.PARTICIPANT,
@@ -42,9 +54,14 @@ export class PermissionService {
   /**
    * Creates a new PermissionService instance.
    * @param cacheService - Optional cache service for performance optimization
+   * @param loggingConfig - Runtime logging configuration (defaults to off when omitted; typically sourced from env/remote config)
    */
-  constructor(cacheService?: CacheService) {
+  constructor(cacheService?: CacheService, loggingConfig?: LoggingModeConfig, sink: PermEventSink = NoopPermEventSink) {
     this.cache = cacheService;
+    this.loggingConfig = {
+      mode: loggingConfig?.mode ?? 'off'
+    };
+    this.sink = sink ?? NoopPermEventSink;
   }
 
   /**
@@ -200,44 +217,22 @@ export class PermissionService {
    * @returns True if user can perform the global action
    */
   canPerformGlobalAction(user: User, resource: Resource, action: Action, subResource?: SubResource): boolean {
-    if (!this.isLoaded) {
-      console.warn('canPerformGlobalAction failed: permissions not loaded yet');
-      return false;
+    const sinkEnabled = this.sink.isEnabled();
+    const includeReason = sinkEnabled && this.shouldComputeDecisionDetails();
+    const evaluation = this.evaluateGlobalActionDetailed(user, resource, action, subResource, includeReason);
+
+    if (sinkEnabled && evaluation.detail) {
+      this.emitPermissionEvent({
+        detail: evaluation.detail,
+        user,
+        siteId: '*',
+        resource,
+        action,
+        subResource
+      });
     }
 
-    if (!user || !resource || !action) {
-      console.warn('canPerformGlobalAction failed: missing required parameters', { user: !!user, resource, action });
-      return false;
-    }
-
-    if (!this.isSuperAdmin(user)) {
-      console.warn('canPerformGlobalAction failed: user is not super admin', { userId: user.uid });
-      return false;
-    }
-
-    if (this.requiresSubResource(resource) && !subResource) {
-      console.warn('canPerformGlobalAction failed: resource requires sub-resource', { resource });
-      return false;
-    }
-
-    if (subResource && !this.isValidSubResource(resource, subResource)) {
-      console.warn('canPerformGlobalAction failed: invalid sub-resource', { resource, subResource });
-      return false;
-    }
-
-    const cacheKey = this.cache?.generatePermissionKey(user.uid, '*', resource, action, subResource);
-    if (cacheKey && this.cache?.has(cacheKey)) {
-      return this.cache.get<boolean>(cacheKey) || false;
-    }
-
-    const allowedActions = this.getActionsForResource(ROLES.SUPER_ADMIN, resource, subResource);
-    const result = allowedActions.includes(action);
-
-    if (cacheKey) {
-      this.cache?.set(cacheKey, result);
-    }
-
-    return result;
+    return evaluation.allowed;
   }
 
   /**
@@ -252,33 +247,133 @@ export class PermissionService {
    * @returns True if user can perform the action on the resource
    */
   canPerformSiteAction(user: User, siteId: string, resource: Resource, action: Action, subResource?: SubResource): boolean {
+    const sinkEnabled = this.sink.isEnabled();
+    const includeReason = sinkEnabled && this.shouldComputeDecisionDetails();
+    const evaluation = this.evaluateSiteActionDetailed(user, siteId, resource, action, subResource, includeReason);
+
+    if (sinkEnabled && evaluation.detail) {
+      this.emitPermissionEvent({
+        detail: evaluation.detail,
+        user,
+        siteId,
+        resource,
+        action,
+        subResource
+      });
+    }
+
+    return evaluation.allowed;
+  }
+
+  private evaluateGlobalActionDetailed(
+    user: User | null | undefined,
+    resource: Resource | null | undefined,
+    action: Action | null | undefined,
+    subResource: SubResource | undefined,
+    includeReason: boolean = false
+  ): PermissionEvaluationResult {
+    if (!this.isLoaded) {
+      console.warn('canPerformGlobalAction failed: permissions not loaded yet');
+      return includeReason
+        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'NOT_LOADED' } }
+        : { allowed: false };
+    }
+
+    if (!user || !resource || !action) {
+      console.warn('canPerformGlobalAction failed: missing required parameters', { user: !!user, resource, action });
+      return includeReason
+        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'MISSING_PARAMS' } }
+        : { allowed: false };
+    }
+
+    if (!this.isSuperAdmin(user)) {
+      console.warn('canPerformGlobalAction failed: user is not super admin', { userId: user.uid });
+      return includeReason
+        ? { allowed: false, detail: { decision: 'deny', reason: 'NOT_ALLOWED' } }
+        : { allowed: false };
+    }
+
+    if (this.requiresSubResource(resource) && !subResource) {
+      console.warn('canPerformGlobalAction failed: resource requires sub-resource', { resource });
+      return includeReason
+        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'REQUIRES_SUBRESOURCE' } }
+        : { allowed: false };
+    }
+
+    if (subResource && !this.isValidSubResource(resource, subResource)) {
+      console.warn('canPerformGlobalAction failed: invalid sub-resource', { resource, subResource });
+      return includeReason
+        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'INVALID_SUBRESOURCE' } }
+        : { allowed: false };
+    }
+
+    const cacheKey = this.cache?.generatePermissionKey(user.uid, '*', resource, action, subResource);
+    if (cacheKey && this.cache?.has(cacheKey) && !includeReason) {
+      return { allowed: this.cache.get<boolean>(cacheKey) || false };
+    }
+
+    const allowedActions = this.getActionsForResource(ROLES.SUPER_ADMIN, resource, subResource);
+    const allowed = allowedActions.includes(action);
+
+    if (cacheKey) {
+      this.cache?.set(cacheKey, allowed);
+    }
+
+    if (!includeReason) {
+      return { allowed };
+    }
+
+    return {
+      allowed,
+      detail: allowed
+        ? { decision: 'allow', reason: 'ALLOWED' }
+        : { decision: 'deny', reason: 'NOT_ALLOWED' }
+    };
+  }
+
+  private evaluateSiteActionDetailed(
+    user: User | null | undefined,
+    siteId: string | null | undefined,
+    resource: Resource | null | undefined,
+    action: Action | null | undefined,
+    subResource: SubResource | undefined,
+    includeReason: boolean = false
+  ): PermissionEvaluationResult {
     if (!this.isLoaded) {
       console.warn('canPerformSiteAction failed: permissions not loaded yet');
-      return false;
+      return includeReason
+        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'NOT_LOADED' } }
+        : { allowed: false };
     }
 
     if (!user || !siteId || !resource || !action) {
       console.warn('canPerformSiteAction failed: missing required parameters', { user: !!user, siteId, resource, action });
-      return false;
+      return includeReason
+        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'MISSING_PARAMS' } }
+        : { allowed: false };
     }
 
     if (this.requiresSubResource(resource) && !subResource) {
       console.warn('canPerformSiteAction failed: resource requires sub-resource', { resource });
-      return false;
+      return includeReason
+        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'REQUIRES_SUBRESOURCE' } }
+        : { allowed: false };
     }
 
     if (subResource && !this.isValidSubResource(resource, subResource)) {
       console.warn('canPerformSiteAction failed: invalid sub-resource', { resource, subResource });
-      return false;
+      return includeReason
+        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'INVALID_SUBRESOURCE' } }
+        : { allowed: false };
     }
 
     if (this.isSuperAdmin(user)) {
-      return this.canPerformGlobalAction(user, resource, action, subResource);
+      return this.evaluateGlobalActionDetailed(user, resource, action, subResource, includeReason);
     }
 
     const cacheKey = this.cache?.generatePermissionKey(user.uid, siteId, resource, action, subResource);
-    if (cacheKey && this.cache?.has(cacheKey)) {
-      return this.cache.get<boolean>(cacheKey) || false;
+    if (cacheKey && this.cache?.has(cacheKey) && !includeReason) {
+      return { allowed: this.cache.get<boolean>(cacheKey) || false };
     }
 
     const userRole = this.getUserSiteRole(user, siteId);
@@ -287,17 +382,77 @@ export class PermissionService {
       if (cacheKey) {
         this.cache?.set(cacheKey, false);
       }
-      return false;
+      return includeReason
+        ? { allowed: false, detail: { decision: 'deny', reason: 'NO_ROLE' } }
+        : { allowed: false };
     }
 
     const allowedActions = this.getActionsForResource(userRole, resource, subResource);
-    const result = allowedActions.includes(action);
+    const allowed = allowedActions.includes(action);
 
     if (cacheKey) {
-      this.cache?.set(cacheKey, result);
+      this.cache?.set(cacheKey, allowed);
     }
 
-    return result;
+    if (!includeReason) {
+      return { allowed };
+    }
+
+    return {
+      allowed,
+      detail: allowed
+        ? { decision: 'allow', reason: 'ALLOWED' }
+        : { decision: 'deny', reason: 'NOT_ALLOWED' }
+    };
+  }
+
+  private emitPermissionEvent(params: {
+    detail?: PermissionDecisionDetail;
+    user?: User | null;
+    siteId?: string | null;
+    resource?: Resource | null;
+    action?: Action | null;
+    subResource?: SubResource;
+  }): void {
+    const { detail, user, siteId, resource, action, subResource } = params;
+
+    if (!detail) {
+      return;
+    }
+
+    const event: PermEvent = {
+      decision: detail.decision,
+      reason: detail.reason,
+      action: action ?? undefined,
+      resource: resource ?? undefined,
+      subResource,
+      resourceKey: this.buildResourceKey(resource, subResource),
+      siteId: siteId ?? undefined,
+      userId: user?.uid,
+      timestamp: Date.now(),
+      environment: this.detectEnvironment()
+    };
+
+    try {
+      this.sink.emit(event);
+    } catch (error) {
+      console.warn('PermissionService logging sink failed to emit event', error);
+    }
+  }
+
+  private shouldComputeDecisionDetails(): boolean {
+    return this.loggingConfig.mode !== 'off';
+  }
+
+  private buildResourceKey(resource?: Resource | null, subResource?: SubResource): string | undefined {
+    if (!resource) {
+      return undefined;
+    }
+    return subResource ? `${resource}:${subResource}` : resource;
+  }
+
+  private detectEnvironment(): 'frontend' | 'backend' {
+    return typeof window === 'undefined' ? 'backend' : 'frontend';
   }
 
   /**
@@ -533,3 +688,8 @@ export class PermissionService {
     };
   }
 }
+
+type PermissionEvaluationResult = {
+  allowed: boolean;
+  detail?: PermissionDecisionDetail;
+};

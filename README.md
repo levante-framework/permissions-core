@@ -8,6 +8,7 @@ A TypeScript package implementing a resource-based access control system for mul
 - **Role Hierarchy**: Five-tier role system from participant to super admin
 - **Resource-based Access Control**: Granular permissions with nested sub-resources for groups and admins
 - **Caching**: TTL-based caching with user-specific clearing and automatic cleanup
+- **Decision Logging (opt-in)**: Configurable modes with pluggable sinks for observability
 - **Version Management**: Document validation and migration framework
 - **TypeScript**: Full type safety with comprehensive interfaces
 - **ESM**: Modern ES module support with source maps
@@ -25,11 +26,17 @@ npm install permissions-service
 ```typescript
 import { PermissionService, CacheService } from 'permissions-service';
 
-// Create cache instance (reuse across requests in Cloud Functions)
 const cache = new CacheService();
 
-// Create permission service
-const permissions = new PermissionService(cache);
+const loggingConfig = { mode: 'off' as const }; // 'off' | 'baseline' | 'debug'
+const sink = {
+  isEnabled: () => loggingConfig.mode !== 'off',
+  emit: (event) => {
+    // no-op by default; plug in Firestore, console, etc.
+  }
+};
+
+const permissions = new PermissionService(cache, loggingConfig, sink);
 
 // Check if user can perform action on a nested resource
 const canEdit = permissions.canPerformSiteAction(
@@ -49,13 +56,30 @@ if (canEdit) {
 
 ```typescript
 // functions/src/permissions.ts
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { getFirestore } from 'firebase-admin/firestore';
 import { PermissionService, CacheService } from 'permissions-service';
 
 // Module-level cache for container persistence
 const cache = new CacheService();
 
+const loggingConfig = {
+  mode: process.env.PERM_LOG_MODE ?? 'baseline'
+};
+
+const firestoreSink = {
+  isEnabled: () => loggingConfig.mode !== 'off',
+  emit: (event) => {
+    setImmediate(async () => {
+      await getFirestore()
+        .collection('permission_events')
+        .add({ ...event, expireAt: Date.now() + 1000 * 60 * 60 * 24 * 90 }); // 90-day TTL
+    });
+  }
+};
+
 export const updateGroup = onCall(async (request) => {
-  const permissions = new PermissionService(cache);
+  const permissions = new PermissionService(cache, loggingConfig, firestoreSink);
   const { userId, siteId } = request.auth;
   
   // Check permission
@@ -106,6 +130,59 @@ export function usePermissions() {
   };
 }
 ```
+
+### Logging & Observability
+
+Permission decisions remain boolean for callers, but you can enable structured logging by supplying a `LoggingModeConfig` and sink:
+
+```typescript
+import { PermissionService, CacheService } from 'permissions-service';
+
+const cache = new CacheService();
+const loggingConfig = { mode: 'baseline' as const };
+
+const sink = {
+  isEnabled: () => loggingConfig.mode !== 'off',
+  emit: (event) => {
+    // Persist to Firestore, enqueue to Pub/Sub, etc.
+    // Keep payloads de-identified (avoid IP / user agent).
+  }
+};
+
+const permissions = new PermissionService(cache, loggingConfig, sink);
+```
+
+Recommended sink patterns:
+
+- **Firestore (backend)** — write each event with a TTL:
+
+  ```typescript
+  const FirestoreSink = {
+    isEnabled: () => true,
+    emit: (event) => {
+      setImmediate(async () => {
+        await db.collection('permission_events').add({
+          ...event,
+          expireAt: Date.now() + 1000 * 60 * 60 * 24 * 60 // 60 days
+        });
+      });
+    }
+  };
+  ```
+
+- **Beacon (frontend)** — forward sampled events to an HTTPS endpoint:
+
+  ```typescript
+  const BrowserSink = {
+    isEnabled: () => true,
+    emit: (event) => {
+      const { userId, ...sanitized } = event; // strip identifiers if required
+      navigator.sendBeacon('/api/permission-log', JSON.stringify(sanitized));
+    }
+  };
+  ```
+
+Toggle logging modes via environment variables or Remote Config (`'off'` → no emission, `'baseline'` → minimal denies, `'debug'` → full capture for investigations). Return to `'off'` once debugging is complete to avoid unnecessary overhead.
 
 ## Role Hierarchy
 
@@ -167,8 +244,15 @@ The permission system uses nested sub-resources for `groups` and `admins`:
 #### Constructor
 
 ```typescript
-new PermissionService(cache?: CacheService)
+new PermissionService(
+  cache?: CacheService,
+  loggingConfig?: LoggingModeConfig,
+  sink?: PermEventSink
+)
 ```
+
+- `loggingConfig` defaults to `{ mode: 'off' }`.
+- `sink` defaults to the internal no-op sink; callers can supply Firestore/beacon/etc.
 
 #### Methods
 

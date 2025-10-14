@@ -12,6 +12,46 @@ export type SubResource = GroupSubResource | AdminSubResource;
 
 export * from './constants.js';
 
+export type PermissionDecision = 'allow' | 'deny' | 'indeterminate';
+
+export type PermissionReason =
+  | 'NOT_LOADED'
+  | 'MISSING_PARAMS'
+  | 'REQUIRES_SUBRESOURCE'
+  | 'INVALID_SUBRESOURCE'
+  | 'NO_ROLE'
+  | 'NOT_ALLOWED'
+  | 'ALLOWED';
+
+export interface PermissionDecisionDetail {
+  decision: PermissionDecision;
+  reason: PermissionReason;
+}
+
+export type LoggingMode = 'off' | 'baseline' | 'debug';
+
+export interface LoggingModeConfig {
+  mode?: LoggingMode;
+}
+
+export interface PermEvent {
+  decision: PermissionDecision;
+  reason: PermissionReason;
+  action?: Action;
+  resource?: Resource;
+  subResource?: SubResource;
+  resourceKey?: string;
+  siteId?: string;
+  userId?: string;
+  timestamp: number;
+  environment: 'frontend' | 'backend';
+}
+
+export interface PermEventSink {
+  isEnabled(): boolean;
+  emit(event: PermEvent): void;
+}
+
 export interface UserRole {
   siteId: string;
   role: Role;

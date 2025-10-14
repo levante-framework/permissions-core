@@ -6,7 +6,9 @@ import type {
   PermissionDocument, 
   PermissionMatrix,
   PermissionCheck,
-  Role 
+  Role,
+  PermEvent,
+  PermEventSink
 } from '../types/permissions.js';
 
 describe('PermissionService', () => {
@@ -172,6 +174,85 @@ describe('PermissionService', () => {
     it('should create service with cache', () => {
       expect(service).toBeInstanceOf(PermissionService);
       expect(service.getCacheStats().enabled).toBe(true);
+    });
+  });
+
+  describe('logging configuration', () => {
+    it('defaults to off when not provided', () => {
+      const defaultService = new PermissionService();
+      expect((defaultService as any).shouldComputeDecisionDetails()).toBe(false);
+    });
+
+    it('remains off when explicitly set to off', () => {
+      const serviceWithExplicitOff = new PermissionService(undefined, { mode: 'off' });
+      expect((serviceWithExplicitOff as any).shouldComputeDecisionDetails()).toBe(false);
+    });
+
+    it('enables reason evaluation when mode is debug', () => {
+      const serviceWithDebug = new PermissionService(undefined, { mode: 'debug' });
+      expect((serviceWithDebug as any).shouldComputeDecisionDetails()).toBe(true);
+    });
+  });
+
+  describe('event sink integration', () => {
+    it('emits event details when sink is enabled', () => {
+      const events: PermEvent[] = [];
+      const sink: PermEventSink = {
+        isEnabled: () => true,
+        emit: (event) => {
+          events.push(event);
+        }
+      };
+
+      const sinkCache = new CacheService(1000);
+      const serviceWithSink = new PermissionService(sinkCache, { mode: 'debug' }, sink);
+      serviceWithSink.loadPermissions(validPermissionDocument);
+
+      const allowed = serviceWithSink.canPerformSiteAction(adminUser, 'site1', 'users', 'read');
+      expect(allowed).toBe(true);
+      expect(events).toHaveLength(1);
+
+      const event = events[0];
+      expect(event.decision).toBe('allow');
+      expect(event.reason).toBe('ALLOWED');
+      expect(event.userId).toBe(adminUser.uid);
+      expect(event.siteId).toBe('site1');
+      expect(event.resource).toBe('users');
+      expect(event.action).toBe('read');
+      expect(event.environment === 'backend' || event.environment === 'frontend').toBe(true);
+
+      sinkCache.destroy();
+    });
+
+    it('does not emit when sink reports disabled', () => {
+      const events: PermEvent[] = [];
+      const sink: PermEventSink = {
+        isEnabled: () => false,
+        emit: (event) => {
+          events.push(event);
+        }
+      };
+
+      const serviceWithSink = new PermissionService(undefined, { mode: 'debug' }, sink);
+      serviceWithSink.loadPermissions(validPermissionDocument);
+
+      const allowed = serviceWithSink.canPerformSiteAction(adminUser, 'site1', 'users', 'read');
+      expect(allowed).toBe(true);
+      expect(events).toHaveLength(0);
+    });
+
+    it('swallows sink errors to keep permission checks synchronous', () => {
+      const sink: PermEventSink = {
+        isEnabled: () => true,
+        emit: () => {
+          throw new Error('sink failure');
+        }
+      };
+
+      const serviceWithFaultySink = new PermissionService(undefined, { mode: 'debug' }, sink);
+      serviceWithFaultySink.loadPermissions(validPermissionDocument);
+
+      expect(() => serviceWithFaultySink.canPerformSiteAction(adminUser, 'site1', 'users', 'read')).not.toThrow();
     });
   });
 
@@ -733,6 +814,118 @@ describe('PermissionService', () => {
         const sites = service.getSitesWithMinRole(participantUser, role);
         expect(sites).toEqual([]);
       });
+    });
+  });
+
+  describe('decision reasons', () => {
+    it('reports NOT_LOADED when permissions are unavailable', () => {
+      const evaluation = (service as any).evaluateSiteActionDetailed(
+        adminUser,
+        'site1',
+        'users',
+        'read',
+        undefined,
+        true
+      );
+
+      expect(evaluation.allowed).toBe(false);
+      expect(evaluation.detail).toEqual({ decision: 'indeterminate', reason: 'NOT_LOADED' });
+    });
+
+    it('reports MISSING_PARAMS when required arguments are absent', () => {
+      service.loadPermissions(validPermissionDocument);
+
+      const evaluation = (service as any).evaluateSiteActionDetailed(
+        adminUser,
+        null,
+        'users',
+        'read',
+        undefined,
+        true
+      );
+
+      expect(evaluation.allowed).toBe(false);
+      expect(evaluation.detail).toEqual({ decision: 'indeterminate', reason: 'MISSING_PARAMS' });
+    });
+
+    it('reports REQUIRES_SUBRESOURCE when nested resource is missing', () => {
+      service.loadPermissions(validPermissionDocument);
+
+      const evaluation = (service as any).evaluateSiteActionDetailed(
+        adminUser,
+        'site1',
+        'groups',
+        'read',
+        undefined,
+        true
+      );
+
+      expect(evaluation.allowed).toBe(false);
+      expect(evaluation.detail).toEqual({ decision: 'indeterminate', reason: 'REQUIRES_SUBRESOURCE' });
+    });
+
+    it('reports INVALID_SUBRESOURCE when nested resource is invalid', () => {
+      service.loadPermissions(validPermissionDocument);
+
+      const evaluation = (service as any).evaluateSiteActionDetailed(
+        adminUser,
+        'site1',
+        'groups',
+        'read',
+        'invalid_subresource' as any,
+        true
+      );
+
+      expect(evaluation.allowed).toBe(false);
+      expect(evaluation.detail).toEqual({ decision: 'indeterminate', reason: 'INVALID_SUBRESOURCE' });
+    });
+
+    it('reports NO_ROLE when user lacks site assignment', () => {
+      service.loadPermissions(validPermissionDocument);
+
+      const evaluation = (service as any).evaluateSiteActionDetailed(
+        adminUser,
+        'missing-site',
+        'users',
+        'read',
+        undefined,
+        true
+      );
+
+      expect(evaluation.allowed).toBe(false);
+      expect(evaluation.detail).toEqual({ decision: 'deny', reason: 'NO_ROLE' });
+    });
+
+    it('reports NOT_ALLOWED when role lacks action permission', () => {
+      service.loadPermissions(validPermissionDocument);
+
+      const evaluation = (service as any).evaluateSiteActionDetailed(
+        researchAssistantUser,
+        'site1',
+        'users',
+        'update',
+        undefined,
+        true
+      );
+
+      expect(evaluation.allowed).toBe(false);
+      expect(evaluation.detail).toEqual({ decision: 'deny', reason: 'NOT_ALLOWED' });
+    });
+
+    it('reports ALLOWED when permission check succeeds', () => {
+      service.loadPermissions(validPermissionDocument);
+
+      const evaluation = (service as any).evaluateSiteActionDetailed(
+        adminUser,
+        'site1',
+        'users',
+        'read',
+        undefined,
+        true
+      );
+
+      expect(evaluation.allowed).toBe(true);
+      expect(evaluation.detail).toEqual({ decision: 'allow', reason: 'ALLOWED' });
     });
   });
 });

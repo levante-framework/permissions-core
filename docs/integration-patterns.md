@@ -4,12 +4,120 @@ This document provides detailed integration patterns for using the permissions s
 
 ## Table of Contents
 
+- [Usage Patterns](#usage-patterns)
 - [Vue SPA Integration](#vue-spa-integration)
 - [Firebase Cloud Functions Integration](#firebase-cloud-functions-integration)
 - [Firestore Security Rules](#firestore-security-rules)
 - [Real-time Updates](#real-time-updates)
 - [Multi-site Architecture](#multi-site-architecture)
 - [Testing Strategies](#testing-strategies)
+- [Permission Decision Logging](#permission-decision-logging)
+
+## Usage Patterns
+
+### Basic Permission Checking
+
+```typescript
+import { PermissionService, CacheService } from 'permissions-service';
+
+const cache = new CacheService();
+const permissions = new PermissionService(cache);
+
+const permissionDoc = {
+  version: '1.0.0',
+  permissions: {
+    admin: {
+      groups: ['create', 'read', 'update'],
+      users: ['create', 'read', 'update']
+    }
+  }
+};
+
+const loadResult = permissions.loadPermissions(permissionDoc);
+if (!loadResult.success) {
+  throw new Error(`Failed to load permissions: ${loadResult.errors.join(', ')}`);
+}
+
+const user = {
+  uid: 'user123',
+  roles: [{ siteId: 'site-001', role: 'admin' }]
+};
+
+const canEditGroups = permissions.canPerformSiteAction(
+  user,
+  'site-001',
+  'groups',
+  'update'
+);
+```
+
+### Super Admin Global Access
+
+```typescript
+const superAdmin = {
+  uid: 'super-001',
+  roles: [{ siteId: '*', role: 'super_admin' }]
+};
+
+const canDeleteAdmins = permissions.canPerformGlobalAction(
+  superAdmin,
+  'admins',
+  'delete',
+  'admin'
+);
+
+const accessibleSites = permissions.getSitesWithMinRole(superAdmin, 'admin');
+// returns ['*']
+```
+
+### Bulk Permission Checks
+
+```typescript
+const results = permissions.bulkPermissionCheck(user, 'site-001', [
+  { resource: 'groups', action: 'create', subResource: 'schools' },
+  { resource: 'users', action: 'update' }
+]);
+
+results.forEach(result => {
+  console.log(`${result.resource}:${result.action}`, result.allowed);
+});
+```
+
+### Role & Site Management
+
+```typescript
+const roleForSite = permissions.getUserSiteRole(user, 'site-001'); // 'admin'
+const promotableSites = permissions.getSitesWithMinRole(user, 'research_assistant');
+```
+
+### Cache Management
+
+```typescript
+permissions.clearUserCache(user.uid); // clear per-user entries
+permissions.clearAllCache(); // flush everything (after matrix refresh)
+
+const stats = permissions.getCacheStats();
+console.log(`Cache enabled: ${stats.enabled}, entries: ${stats.size}`);
+```
+
+### Error Handling Strategies
+
+```typescript
+try {
+  const allowed = permissions.canPerformSiteAction(user, 'site-001', 'tasks', 'delete');
+  if (!allowed) {
+    logger.warn('Permission denied', { resource: 'tasks', action: 'delete', userId: user.uid });
+  }
+} catch (error) {
+  logger.error('Permission evaluation failed', error);
+}
+```
+
+### Performance Optimization
+
+- Reuse a shared `CacheService` instance (per server process or browser session).
+- Prefer `bulkPermissionCheck` when evaluating multiple actions at once.
+- For Vue integrations, debounce or memoize expensive checks and react to auth/site changes.
 
 ## Vue SPA Integration
 
@@ -760,6 +868,61 @@ export const deleteGroup = onCall(async (request) => {
   }
 });
 ```
+
+## Permission Decision Logging
+
+Permission logging is optional and controlled through `LoggingModeConfig`. Provide a sink suited to your runtime and keep event payloads de-identified.
+
+### Backend (Firestore) Sink
+
+```typescript
+import { PermissionService, CacheService } from 'permissions-service';
+import { getFirestore } from 'firebase-admin/firestore';
+
+const cache = new CacheService();
+const loggingConfig = { mode: 'baseline' as const };
+
+const db = getFirestore();
+
+const FirestoreSink = {
+  isEnabled: () => loggingConfig.mode !== 'off',
+  emit: (event) => {
+    setImmediate(async () => {
+      await db.collection('permission_events').add({
+        ...event,
+        expireAt: Date.now() + 1000 * 60 * 60 * 24 * 90 // 90 days
+      });
+    });
+  }
+};
+
+const permissions = new PermissionService(cache, loggingConfig, FirestoreSink);
+```
+
+### Frontend (Navigator Beacon) Sink
+
+```typescript
+import { PermissionService, CacheService } from 'permissions-service';
+
+const cache = new CacheService();
+const loggingConfig = { mode: 'baseline' as const };
+
+const BrowserSink = {
+  isEnabled: () => loggingConfig.mode !== 'off',
+  emit: (event) => {
+    const { userId, ...sanitized } = event; // Strip identifiers if policy requires
+    navigator.sendBeacon('/api/permission-log', JSON.stringify(sanitized));
+  }
+};
+
+export const permissions = new PermissionService(cache, loggingConfig, BrowserSink);
+```
+
+### Operational Notes
+
+- Keep payloads de-identified—avoid recording IP address, user agent, or other volatile identifiers.
+- Use `'debug'` mode sparingly for incident response; revert to `'baseline'` or `'off'` for normal operation.
+- Aggregate counters/dashboards are intentionally deferred; rely on raw event storage with TTL (Firestore TTL, BigQuery partition expiry, etc.).
 
 ## Firestore Security Rules
 
