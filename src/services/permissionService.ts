@@ -15,10 +15,6 @@ import type {
   PermEvent,
   PermEventSink
 } from '../types/permissions.js';
-export const NoopPermEventSink: PermEventSink = Object.freeze({
-  isEnabled: () => false,
-  emit: () => {}
-});
 
 import { 
   ROLES, 
@@ -29,6 +25,11 @@ import {
 } from '../types/constants.js';
 import { CacheService } from './cacheService.js';
 import { VersionHandler } from '../utils/versionHandler.js';
+
+export const NoopPermEventSink: PermEventSink = Object.freeze({
+  isEnabled: () => false,
+  emit: () => {}
+});
 
 /**
  * Service for managing resource-based permissions in a multi-site environment.
