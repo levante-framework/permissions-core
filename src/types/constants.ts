@@ -32,7 +32,8 @@ export const GROUP_SUB_RESOURCES = {
 export const ADMIN_SUB_RESOURCES = {
   SITE_ADMIN: 'site_admin',
   ADMIN: 'admin',
-  RESEARCH_ASSISTANT: 'research_assistant'
+  RESEARCH_ASSISTANT: 'research_assistant',
+  SUPER_ADMIN: 'super_admin'
 } as const;
 
 export const FLAT_RESOURCES = [

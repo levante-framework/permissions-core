@@ -16,7 +16,8 @@ describe('VersionHandler', () => {
       'admins': {
         'site_admin': ['create', 'read', 'update', 'delete'],
         'admin': ['create', 'read', 'update', 'delete'],
-        'research_assistant': ['create', 'read', 'update', 'delete']
+        'research_assistant': ['create', 'read', 'update', 'delete'],
+        'super_admin': ['create', 'read', 'update', 'delete']
       },
       'tasks': ['create', 'read', 'update', 'delete', 'exclude']
     },
@@ -32,7 +33,8 @@ describe('VersionHandler', () => {
       'admins': {
         'site_admin': ['create', 'read'],
         'admin': ['create', 'read', 'update', 'delete', 'exclude'],
-        'research_assistant': ['create', 'read', 'update', 'delete']
+        'research_assistant': ['create', 'read', 'update', 'delete'],
+        'super_admin': []
       },
       'tasks': ['create', 'read', 'update', 'delete', 'exclude']
     },
@@ -48,7 +50,8 @@ describe('VersionHandler', () => {
       'admins': {
         'site_admin': ['read'],
         'admin': ['read'],
-        'research_assistant': ['create', 'read']
+        'research_assistant': ['create', 'read'],
+        'super_admin': []
       },
       'tasks': ['read']
     },
@@ -64,7 +67,8 @@ describe('VersionHandler', () => {
       'admins': {
         'site_admin': ['read'],
         'admin': ['read'],
-        'research_assistant': ['read']
+        'research_assistant': ['read'],
+        'super_admin': []
       },
       'tasks': ['read']
     },
@@ -80,7 +84,8 @@ describe('VersionHandler', () => {
       'admins': {
         'site_admin': [],
         'admin': [],
-        'research_assistant': []
+        'research_assistant': [],
+        'super_admin': []
       },
       'tasks': []
     }
@@ -251,7 +256,8 @@ describe('VersionHandler', () => {
           'admins': {
             'site_admin': [],
             'admin': [],
-            'research_assistant': []
+            'research_assistant': [],
+            'super_admin': []
           },
           'assignments': [],
           'users': [],
@@ -283,7 +289,8 @@ describe('VersionHandler', () => {
           'admins': {
             'site_admin': [],
             'admin': [],
-            'research_assistant': []
+            'research_assistant': [],
+            'super_admin': []
           },
           'assignments': [],
           'users': [],

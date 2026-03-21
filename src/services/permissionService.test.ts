@@ -28,7 +28,8 @@ describe('PermissionService', () => {
       'admins': {
         'site_admin': ['create', 'read', 'update', 'delete'],
         'admin': ['create', 'read', 'update', 'delete'],
-        'research_assistant': ['create', 'read', 'update', 'delete']
+        'research_assistant': ['create', 'read', 'update', 'delete'],
+        'super_admin': ['create', 'read', 'update', 'delete']
       },
       'tasks': ['create', 'read', 'update', 'delete', 'exclude']
     },
@@ -44,7 +45,8 @@ describe('PermissionService', () => {
       'admins': {
         'site_admin': ['create', 'read'],
         'admin': ['create', 'read', 'update', 'delete', 'exclude'],
-        'research_assistant': ['create', 'read', 'update', 'delete']
+        'research_assistant': ['create', 'read', 'update', 'delete'],
+        'super_admin': []
       },
       'tasks': ['create', 'read', 'update', 'delete', 'exclude']
     },
@@ -60,7 +62,8 @@ describe('PermissionService', () => {
       'admins': {
         'site_admin': ['read'],
         'admin': ['read'],
-        'research_assistant': ['create', 'read']
+        'research_assistant': ['create', 'read'],
+        'super_admin': []
       },
       'tasks': ['read']
     },
@@ -76,7 +79,8 @@ describe('PermissionService', () => {
       'admins': {
         'site_admin': ['read'],
         'admin': ['read'],
-        'research_assistant': ['read']
+        'research_assistant': ['read'],
+        'super_admin': []
       },
       'tasks': ['read']
     },
@@ -92,7 +96,8 @@ describe('PermissionService', () => {
       'admins': {
         'site_admin': [],
         'admin': [],
-        'research_assistant': []
+        'research_assistant': [],
+        'super_admin': []
       },
       'tasks': []
     }
@@ -419,6 +424,10 @@ describe('PermissionService', () => {
       expect(service.canPerformGlobalAction(superAdminUser, 'groups', 'create', 'sites')).toBe(true);
       expect(service.canPerformGlobalAction(superAdminUser, 'users', 'delete')).toBe(true);
       expect(service.canPerformGlobalAction(superAdminUser, 'admins', 'delete', 'admin')).toBe(true);
+      expect(service.canPerformGlobalAction(superAdminUser, 'admins', 'create', 'super_admin')).toBe(true);
+      expect(service.canPerformGlobalAction(superAdminUser, 'admins', 'read', 'super_admin')).toBe(true);
+      expect(service.canPerformGlobalAction(superAdminUser, 'admins', 'update', 'super_admin')).toBe(true);
+      expect(service.canPerformGlobalAction(superAdminUser, 'admins', 'delete', 'super_admin')).toBe(true);
     });
 
     it('should deny global actions for non-super admin users', () => {
@@ -581,7 +590,8 @@ describe('PermissionService', () => {
         expect(permissions.admins).toEqual({
           site_admin: ['read'],
           admin: ['read'],
-          research_assistant: ['create', 'read']
+          research_assistant: ['create', 'read'],
+          super_admin: []
         });
       }
     });
@@ -745,6 +755,7 @@ describe('PermissionService', () => {
     it('should allow super admin access to any site', () => {
       expect(service.canPerformSiteAction(superAdminUser, 'non-existent-site', 'groups', 'delete', 'schools')).toBe(true);
       expect(service.canPerformSiteAction(superAdminUser, 'site1', 'admins', 'delete', 'admin')).toBe(true);
+      expect(service.canPerformSiteAction(superAdminUser, 'site1', 'admins', 'update', 'super_admin')).toBe(true);
     });
 
     it('should return wildcard for super admin sites', () => {
@@ -790,7 +801,7 @@ describe('PermissionService', () => {
         });
       });
       
-      const adminSubResources = ['site_admin', 'admin', 'research_assistant'] as const;
+      const adminSubResources = ['site_admin', 'admin', 'research_assistant', 'super_admin'] as const;
       adminSubResources.forEach(subResource => {
         actions.forEach(action => {
           expect(service.canPerformSiteAction(participantUser, 'site1', 'admins', action, subResource)).toBe(false);
