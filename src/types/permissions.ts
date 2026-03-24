@@ -6,7 +6,7 @@ export type Resource = 'groups' | 'assignments' | 'users' | 'admins' | 'tasks';
 
 export type GroupSubResource = 'sites' | 'schools' | 'classes' | 'cohorts';
 
-export type AdminSubResource = 'site_admin' | 'admin' | 'research_assistant';
+export type AdminSubResource = 'site_admin' | 'admin' | 'research_assistant' | 'super_admin';
 
 export type SubResource = GroupSubResource | AdminSubResource;
 
