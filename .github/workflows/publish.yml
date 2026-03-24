@@ -16,6 +16,14 @@ jobs:
         run: |
           npm ci
           npm run build
+      - name: Verify NPM token
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.LEVANTE_NPM_TOKEN }}
+        run: |
+          if ! npm whoami --registry https://registry.npmjs.org; then
+            echo "::error::NPM token check failed: LEVANTE_NPM_TOKEN is missing, expired, revoked, or not valid for registry.npmjs.org."
+            exit 1
+          fi
       - name: Publish 🚀
         run: npm publish
         env:
