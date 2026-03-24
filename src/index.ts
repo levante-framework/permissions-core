@@ -40,7 +40,8 @@ export {
   ALL_RESOURCES,
   ALL_ACTIONS,
   ALL_GROUP_SUB_RESOURCES,
-  ALL_ADMIN_SUB_RESOURCES
+  ALL_ADMIN_SUB_RESOURCES,
+  DEFAULT_PERMISSION_MATRIX
 } from './types/constants.js';
 
 // core services
