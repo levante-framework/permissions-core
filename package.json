@@ -14,13 +14,15 @@
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/levante-framework/permissions-core.git"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "vitest",
-    "test:run": "vitest run",
-    "clean": "rm -rf dist",
-    "prepublishOnly": "npm run clean && npm run build"
+    "test:run": "vitest run"
   },
   "keywords": [
     "permissions",
@@ -36,5 +38,8 @@
   },
   "dependencies": {
     "firebase": "^12.0.0"
+  },
+  "engines": {
+    "node": "^24"
   }
 }
