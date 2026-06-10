@@ -10,7 +10,7 @@ on:
         options:
           - patch
           - minor
-          - majors
+          - major
 
 concurrency:
   group: ${{ github.workflow }}
