@@ -1,16 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import type { 
-  Role, 
-  Action, 
-  Resource, 
-  UserRole, 
-  User, 
+import type {
+  Role,
+  Action,
+  Resource,
+  UserRole,
+  User,
   PermissionMatrix,
   PermissionDocument,
   PermissionCheck,
   BulkPermissionResult,
   CacheEntry,
-  CacheOptions
+  CacheOptions,
 } from './permissions.js';
 
 describe('Permission Types', () => {
@@ -18,15 +18,21 @@ describe('Permission Types', () => {
     it('should accept valid role values', () => {
       const validRoles: Role[] = [
         'super_admin',
-        'site_admin', 
+        'site_admin',
         'admin',
         'research_assistant',
-        'participant'
+        'participant',
       ];
 
-      validRoles.forEach(role => {
+      validRoles.forEach((role) => {
         expect(typeof role).toBe('string');
-        expect(['super_admin', 'site_admin', 'admin', 'research_assistant', 'participant']).toContain(role);
+        expect([
+          'super_admin',
+          'site_admin',
+          'admin',
+          'research_assistant',
+          'participant',
+        ]).toContain(role);
       });
     });
   });
@@ -35,15 +41,17 @@ describe('Permission Types', () => {
     it('should accept valid action values', () => {
       const validActions: Action[] = [
         'create',
-        'read', 
+        'read',
         'update',
         'delete',
-        'exclude'
+        'exclude',
       ];
 
-      validActions.forEach(action => {
+      validActions.forEach((action) => {
         expect(typeof action).toBe('string');
-        expect(['create', 'read', 'update', 'delete', 'exclude']).toContain(action);
+        expect(['create', 'read', 'update', 'delete', 'exclude']).toContain(
+          action,
+        );
       });
     });
   });
@@ -53,14 +61,16 @@ describe('Permission Types', () => {
       const validResources: Resource[] = [
         'groups',
         'assignments',
-        'users', 
+        'users',
         'admins',
-        'tasks'
+        'tasks',
       ];
 
-      validResources.forEach(resource => {
+      validResources.forEach((resource) => {
         expect(typeof resource).toBe('string');
-        expect(['groups', 'assignments', 'users', 'admins', 'tasks']).toContain(resource);
+        expect(['groups', 'assignments', 'users', 'admins', 'tasks']).toContain(
+          resource,
+        );
       });
     });
   });
@@ -69,7 +79,7 @@ describe('Permission Types', () => {
     it('should have correct structure', () => {
       const userRole: UserRole = {
         siteId: 'site123',
-        role: 'admin'
+        role: 'admin',
       };
 
       expect(userRole).toHaveProperty('siteId');
@@ -86,8 +96,8 @@ describe('Permission Types', () => {
         email: 'test@example.com',
         roles: [
           { siteId: 'site1', role: 'admin' },
-          { siteId: 'site2', role: 'research_assistant' }
-        ]
+          { siteId: 'site2', role: 'research_assistant' },
+        ],
       };
 
       expect(user).toHaveProperty('uid');
@@ -102,7 +112,7 @@ describe('Permission Types', () => {
       const user: User = {
         uid: 'user123',
         email: 'test@example.com',
-        roles: []
+        roles: [],
       };
 
       expect(user.roles).toHaveLength(0);
@@ -112,14 +122,14 @@ describe('Permission Types', () => {
   describe('PermissionMatrix interface', () => {
     it('should have correct structure', () => {
       const matrix: PermissionMatrix = {
-        'admin': {
-          'groups': ['create', 'read', 'update'],
-          'users': ['read']
+        admin: {
+          groups: ['create', 'read', 'update'],
+          users: ['read'],
         },
-        'participant': {
-          'groups': [],
-          'users': []
-        }
+        participant: {
+          groups: [],
+          users: [],
+        },
       };
 
       expect(typeof matrix).toBe('object');
@@ -134,13 +144,13 @@ describe('Permission Types', () => {
     it('should have correct structure', () => {
       const document: PermissionDocument = {
         permissions: {
-          'admin': {
-            'groups': ['create', 'read'],
-            'users': ['read']
-          }
+          admin: {
+            groups: ['create', 'read'],
+            users: ['read'],
+          },
         },
         version: '1.1.0',
-        updatedAt: '2025-01-01T00:00:00Z'
+        updatedAt: '2025-01-01T00:00:00Z',
       };
 
       expect(document).toHaveProperty('permissions');
@@ -156,7 +166,7 @@ describe('Permission Types', () => {
     it('should have correct structure', () => {
       const check: PermissionCheck = {
         resource: 'groups',
-        action: 'create'
+        action: 'create',
       };
 
       expect(check).toHaveProperty('resource');
@@ -171,7 +181,7 @@ describe('Permission Types', () => {
       const result: BulkPermissionResult = {
         resource: 'groups',
         action: 'create',
-        allowed: true
+        allowed: true,
       };
 
       expect(result).toHaveProperty('resource');
@@ -187,7 +197,7 @@ describe('Permission Types', () => {
     it('should have correct structure', () => {
       const entry: CacheEntry<string> = {
         value: 'test',
-        expiresAt: Date.now() + 1000
+        expiresAt: Date.now() + 1000,
       };
 
       expect(entry).toHaveProperty('value');
@@ -198,17 +208,17 @@ describe('Permission Types', () => {
     it('should work with different value types', () => {
       const stringEntry: CacheEntry<string> = {
         value: 'test',
-        expiresAt: Date.now()
+        expiresAt: Date.now(),
       };
 
       const booleanEntry: CacheEntry<boolean> = {
         value: true,
-        expiresAt: Date.now()
+        expiresAt: Date.now(),
       };
 
       const objectEntry: CacheEntry<{ test: string }> = {
         value: { test: 'value' },
-        expiresAt: Date.now()
+        expiresAt: Date.now(),
       };
 
       expect(typeof stringEntry.value).toBe('string');
@@ -220,7 +230,7 @@ describe('Permission Types', () => {
   describe('CacheOptions interface', () => {
     it('should have correct structure', () => {
       const options: CacheOptions = {
-        ttl: 3600000
+        ttl: 3600000,
       };
 
       expect(options).toHaveProperty('ttl');

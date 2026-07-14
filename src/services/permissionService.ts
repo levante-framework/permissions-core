@@ -1,9 +1,9 @@
 import type {
-  User, 
-  Role, 
-  Resource, 
-  Action, 
-  PermissionMatrix, 
+  User,
+  Role,
+  Resource,
+  Action,
+  PermissionMatrix,
   PermissionDocument,
   PermissionCheck,
   BulkPermissionResult,
@@ -13,22 +13,22 @@ import type {
   PermissionDecisionDetail,
   LoggingModeConfig,
   PermEvent,
-  PermEventSink
+  PermEventSink,
 } from '../types/permissions.js';
 
 import {
-  ROLES, 
-  RESOURCES, 
-  ALL_GROUP_SUB_RESOURCES, 
-  ALL_ADMIN_SUB_RESOURCES, 
-  FLAT_RESOURCES 
+  ROLES,
+  RESOURCES,
+  ALL_GROUP_SUB_RESOURCES,
+  ALL_ADMIN_SUB_RESOURCES,
+  FLAT_RESOURCES,
 } from '../types/constants.js';
 import { CacheService } from './cacheService.js';
 import { VersionHandler } from '../utils/versionHandler.js';
 
 const NoopPermEventSink: PermEventSink = Object.freeze({
   isEnabled: () => false,
-  emit: () => {}
+  emit: () => {},
 });
 
 /**
@@ -45,10 +45,10 @@ export class PermissionService {
 
   private static readonly ROLE_HIERARCHY: Role[] = [
     ROLES.PARTICIPANT,
-    ROLES.RESEARCH_ASSISTANT, 
+    ROLES.RESEARCH_ASSISTANT,
     ROLES.ADMIN,
     ROLES.SITE_ADMIN,
-    ROLES.SUPER_ADMIN
+    ROLES.SUPER_ADMIN,
   ];
 
   /**
@@ -56,10 +56,14 @@ export class PermissionService {
    * @param cacheService - Optional cache service for performance optimization
    * @param loggingConfig - Runtime logging configuration (defaults to off when omitted; typically sourced from env/remote config)
    */
-  constructor(cacheService?: CacheService, loggingConfig?: LoggingModeConfig, sink: PermEventSink = NoopPermEventSink) {
+  constructor(
+    cacheService?: CacheService,
+    loggingConfig?: LoggingModeConfig,
+    sink: PermEventSink = NoopPermEventSink,
+  ) {
     this.cache = cacheService;
     this.loggingConfig = {
-      mode: loggingConfig?.mode ?? 'off'
+      mode: loggingConfig?.mode ?? 'off',
     };
     this.sink = sink ?? NoopPermEventSink;
   }
@@ -70,15 +74,19 @@ export class PermissionService {
    * @param document - Permission document containing version and permissions
    * @returns Result object with success status, errors, and warnings
    */
-  loadPermissions(document: PermissionDocument): { success: boolean; errors: string[]; warnings: string[] } {
+  loadPermissions(document: PermissionDocument): {
+    success: boolean;
+    errors: string[];
+    warnings: string[];
+  } {
     const result = VersionHandler.processPermissionDocument(document);
-    
+
     if (!result.success) {
       this.isLoaded = false;
       return {
         success: false,
         errors: result.errors,
-        warnings: result.warnings
+        warnings: result.warnings,
       };
     }
 
@@ -93,7 +101,7 @@ export class PermissionService {
     return {
       success: true,
       errors: result.errors,
-      warnings: result.warnings
+      warnings: result.warnings,
     };
   }
 
@@ -127,7 +135,7 @@ export class PermissionService {
       console.warn('isSuperAdmin check failed: user or user.roles is missing');
       return false;
     }
-    return user.roles.some(role => role.role === ROLES.SUPER_ADMIN);
+    return user.roles.some((role) => role.role === ROLES.SUPER_ADMIN);
   }
 
   private requiresSubResource(resource: Resource): boolean {
@@ -146,7 +154,7 @@ export class PermissionService {
   private getActionsForResource(
     role: Role,
     resource: Resource,
-    subResource?: SubResource
+    subResource?: SubResource,
   ): Action[] {
     const rolePermissions = this.permissionMatrix[role];
     if (!rolePermissions) {
@@ -154,13 +162,16 @@ export class PermissionService {
     }
 
     const resourcePermissions = rolePermissions[resource];
-    
+
     if (resource === RESOURCES.GROUPS || resource === RESOURCES.ADMINS) {
       if (!subResource) {
         return [];
       }
-      
-      if (typeof resourcePermissions === 'object' && !Array.isArray(resourcePermissions)) {
+
+      if (
+        typeof resourcePermissions === 'object' &&
+        !Array.isArray(resourcePermissions)
+      ) {
         return (resourcePermissions as any)[subResource] || [];
       }
       return [];
@@ -184,7 +195,7 @@ export class PermissionService {
       return ROLES.SUPER_ADMIN;
     }
 
-    const siteRole = user.roles.find(role => role.siteId === siteId);
+    const siteRole = user.roles.find((role) => role.siteId === siteId);
     return siteRole?.role || null;
   }
 
@@ -197,10 +208,16 @@ export class PermissionService {
    */
   hasMinimumRole(userRole: Role, requiredRole: Role): boolean {
     const userLevel = PermissionService.ROLE_HIERARCHY.indexOf(userRole);
-    const requiredLevel = PermissionService.ROLE_HIERARCHY.indexOf(requiredRole);
-    
+    const requiredLevel =
+      PermissionService.ROLE_HIERARCHY.indexOf(requiredRole);
+
     if (userLevel === -1 || requiredLevel === -1) {
-      console.warn('hasMinimumRole failed: invalid role', { userRole, requiredRole, userLevel, requiredLevel });
+      console.warn('hasMinimumRole failed: invalid role', {
+        userRole,
+        requiredRole,
+        userLevel,
+        requiredLevel,
+      });
       return false;
     }
 
@@ -216,10 +233,21 @@ export class PermissionService {
    * @param subResource - Optional sub-resource (required for groups and admins)
    * @returns True if user can perform the global action
    */
-  canPerformGlobalAction(user: User, resource: Resource, action: Action, subResource?: SubResource): boolean {
+  canPerformGlobalAction(
+    user: User,
+    resource: Resource,
+    action: Action,
+    subResource?: SubResource,
+  ): boolean {
     const sinkEnabled = this.sink.isEnabled();
     const includeReason = sinkEnabled && this.shouldComputeDecisionDetails();
-    const evaluation = this.evaluateGlobalActionDetailed(user, resource, action, subResource, includeReason);
+    const evaluation = this.evaluateGlobalActionDetailed(
+      user,
+      resource,
+      action,
+      subResource,
+      includeReason,
+    );
 
     if (sinkEnabled && evaluation.detail) {
       this.emitPermissionEvent({
@@ -228,7 +256,7 @@ export class PermissionService {
         siteId: '*',
         resource,
         action,
-        subResource
+        subResource,
       });
     }
 
@@ -246,10 +274,23 @@ export class PermissionService {
    * @param subResource - Optional sub-resource (required for groups and admins)
    * @returns True if user can perform the action on the resource
    */
-  canPerformSiteAction(user: User, siteId: string, resource: Resource, action: Action, subResource?: SubResource): boolean {
+  canPerformSiteAction(
+    user: User,
+    siteId: string,
+    resource: Resource,
+    action: Action,
+    subResource?: SubResource,
+  ): boolean {
     const sinkEnabled = this.sink.isEnabled();
     const includeReason = sinkEnabled && this.shouldComputeDecisionDetails();
-    const evaluation = this.evaluateSiteActionDetailed(user, siteId, resource, action, subResource, includeReason);
+    const evaluation = this.evaluateSiteActionDetailed(
+      user,
+      siteId,
+      resource,
+      action,
+      subResource,
+      includeReason,
+    );
 
     if (sinkEnabled && evaluation.detail) {
       this.emitPermissionEvent({
@@ -258,7 +299,7 @@ export class PermissionService {
         siteId,
         resource,
         action,
-        subResource
+        subResource,
       });
     }
 
@@ -270,49 +311,91 @@ export class PermissionService {
     resource: Resource | null | undefined,
     action: Action | null | undefined,
     subResource: SubResource | undefined,
-    includeReason: boolean = false
+    includeReason: boolean = false,
   ): PermissionEvaluationResult {
     if (!this.isLoaded) {
       console.warn('canPerformGlobalAction failed: permissions not loaded yet');
       return includeReason
-        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'NOT_LOADED' } }
+        ? {
+            allowed: false,
+            detail: { decision: 'indeterminate', reason: 'NOT_LOADED' },
+          }
         : { allowed: false };
     }
 
     if (!user || !resource || !action) {
-      console.warn('canPerformGlobalAction failed: missing required parameters', { user: !!user, resource, action });
+      console.warn(
+        'canPerformGlobalAction failed: missing required parameters',
+        { user: !!user, resource, action },
+      );
       return includeReason
-        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'MISSING_PARAMS' } }
+        ? {
+            allowed: false,
+            detail: { decision: 'indeterminate', reason: 'MISSING_PARAMS' },
+          }
         : { allowed: false };
     }
 
     if (!this.isSuperAdmin(user)) {
-      console.warn('canPerformGlobalAction failed: user is not super admin', { userId: user.uid });
+      console.warn('canPerformGlobalAction failed: user is not super admin', {
+        userId: user.uid,
+      });
       return includeReason
-        ? { allowed: false, detail: { decision: 'deny', reason: 'NOT_ALLOWED' } }
+        ? {
+            allowed: false,
+            detail: { decision: 'deny', reason: 'NOT_ALLOWED' },
+          }
         : { allowed: false };
     }
 
     if (this.requiresSubResource(resource) && !subResource) {
-      console.warn('canPerformGlobalAction failed: resource requires sub-resource', { resource });
+      console.warn(
+        'canPerformGlobalAction failed: resource requires sub-resource',
+        { resource },
+      );
       return includeReason
-        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'REQUIRES_SUBRESOURCE' } }
+        ? {
+            allowed: false,
+            detail: {
+              decision: 'indeterminate',
+              reason: 'REQUIRES_SUBRESOURCE',
+            },
+          }
         : { allowed: false };
     }
 
     if (subResource && !this.isValidSubResource(resource, subResource)) {
-      console.warn('canPerformGlobalAction failed: invalid sub-resource', { resource, subResource });
+      console.warn('canPerformGlobalAction failed: invalid sub-resource', {
+        resource,
+        subResource,
+      });
       return includeReason
-        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'INVALID_SUBRESOURCE' } }
+        ? {
+            allowed: false,
+            detail: {
+              decision: 'indeterminate',
+              reason: 'INVALID_SUBRESOURCE',
+            },
+          }
         : { allowed: false };
     }
 
-    const cacheKey = this.cache?.generatePermissionKey(user.uid, '*', resource, action, subResource);
+    const cacheKey = this.cache?.generatePermissionKey(
+      user.uid,
+      '*',
+      resource,
+      action,
+      subResource,
+    );
     if (cacheKey && this.cache?.has(cacheKey) && !includeReason) {
       return { allowed: this.cache.get<boolean>(cacheKey) || false };
     }
 
-    const allowedActions = this.getActionsForResource(ROLES.SUPER_ADMIN, resource, subResource);
+    const allowedActions = this.getActionsForResource(
+      ROLES.SUPER_ADMIN,
+      resource,
+      subResource,
+    );
     const allowed = allowedActions.includes(action);
 
     if (cacheKey) {
@@ -327,7 +410,7 @@ export class PermissionService {
       allowed,
       detail: allowed
         ? { decision: 'allow', reason: 'ALLOWED' }
-        : { decision: 'deny', reason: 'NOT_ALLOWED' }
+        : { decision: 'deny', reason: 'NOT_ALLOWED' },
     };
   }
 
@@ -337,48 +420,92 @@ export class PermissionService {
     resource: Resource | null | undefined,
     action: Action | null | undefined,
     subResource: SubResource | undefined,
-    includeReason: boolean = false
+    includeReason: boolean = false,
   ): PermissionEvaluationResult {
     if (!this.isLoaded) {
       console.warn('canPerformSiteAction failed: permissions not loaded yet');
       return includeReason
-        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'NOT_LOADED' } }
+        ? {
+            allowed: false,
+            detail: { decision: 'indeterminate', reason: 'NOT_LOADED' },
+          }
         : { allowed: false };
     }
 
     if (!user || !siteId || !resource || !action) {
-      console.warn('canPerformSiteAction failed: missing required parameters', { user: !!user, siteId, resource, action });
+      console.warn('canPerformSiteAction failed: missing required parameters', {
+        user: !!user,
+        siteId,
+        resource,
+        action,
+      });
       return includeReason
-        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'MISSING_PARAMS' } }
+        ? {
+            allowed: false,
+            detail: { decision: 'indeterminate', reason: 'MISSING_PARAMS' },
+          }
         : { allowed: false };
     }
 
     if (this.requiresSubResource(resource) && !subResource) {
-      console.warn('canPerformSiteAction failed: resource requires sub-resource', { resource });
+      console.warn(
+        'canPerformSiteAction failed: resource requires sub-resource',
+        { resource },
+      );
       return includeReason
-        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'REQUIRES_SUBRESOURCE' } }
+        ? {
+            allowed: false,
+            detail: {
+              decision: 'indeterminate',
+              reason: 'REQUIRES_SUBRESOURCE',
+            },
+          }
         : { allowed: false };
     }
 
     if (subResource && !this.isValidSubResource(resource, subResource)) {
-      console.warn('canPerformSiteAction failed: invalid sub-resource', { resource, subResource });
+      console.warn('canPerformSiteAction failed: invalid sub-resource', {
+        resource,
+        subResource,
+      });
       return includeReason
-        ? { allowed: false, detail: { decision: 'indeterminate', reason: 'INVALID_SUBRESOURCE' } }
+        ? {
+            allowed: false,
+            detail: {
+              decision: 'indeterminate',
+              reason: 'INVALID_SUBRESOURCE',
+            },
+          }
         : { allowed: false };
     }
 
     if (this.isSuperAdmin(user)) {
-      return this.evaluateGlobalActionDetailed(user, resource, action, subResource, includeReason);
+      return this.evaluateGlobalActionDetailed(
+        user,
+        resource,
+        action,
+        subResource,
+        includeReason,
+      );
     }
 
-    const cacheKey = this.cache?.generatePermissionKey(user.uid, siteId, resource, action, subResource);
+    const cacheKey = this.cache?.generatePermissionKey(
+      user.uid,
+      siteId,
+      resource,
+      action,
+      subResource,
+    );
     if (cacheKey && this.cache?.has(cacheKey) && !includeReason) {
       return { allowed: this.cache.get<boolean>(cacheKey) || false };
     }
 
     const userRole = this.getUserSiteRole(user, siteId);
     if (!userRole) {
-      console.warn('canPerformSiteAction failed: user has no role for site', { userId: user.uid, siteId });
+      console.warn('canPerformSiteAction failed: user has no role for site', {
+        userId: user.uid,
+        siteId,
+      });
       if (cacheKey) {
         this.cache?.set(cacheKey, false);
       }
@@ -387,7 +514,11 @@ export class PermissionService {
         : { allowed: false };
     }
 
-    const allowedActions = this.getActionsForResource(userRole, resource, subResource);
+    const allowedActions = this.getActionsForResource(
+      userRole,
+      resource,
+      subResource,
+    );
     const allowed = allowedActions.includes(action);
 
     if (cacheKey) {
@@ -402,7 +533,7 @@ export class PermissionService {
       allowed,
       detail: allowed
         ? { decision: 'allow', reason: 'ALLOWED' }
-        : { decision: 'deny', reason: 'NOT_ALLOWED' }
+        : { decision: 'deny', reason: 'NOT_ALLOWED' },
     };
   }
 
@@ -430,13 +561,16 @@ export class PermissionService {
       siteId: siteId ?? undefined,
       userId: user?.uid,
       timestamp: Date.now(),
-      environment: this.detectEnvironment()
+      environment: this.detectEnvironment(),
     };
 
     try {
       this.sink.emit(event);
     } catch (error) {
-      console.warn('PermissionService logging sink failed to emit event', error);
+      console.warn(
+        'PermissionService logging sink failed to emit event',
+        error,
+      );
     }
   }
 
@@ -444,7 +578,10 @@ export class PermissionService {
     return this.loggingConfig.mode !== 'off';
   }
 
-  private buildResourceKey(resource?: Resource | null, subResource?: SubResource): string | undefined {
+  private buildResourceKey(
+    resource?: Resource | null,
+    subResource?: SubResource,
+  ): string | undefined {
     if (!resource) {
       return undefined;
     }
@@ -469,16 +606,20 @@ export class PermissionService {
 
     const minLevel = PermissionService.ROLE_HIERARCHY.indexOf(minRole);
     if (minLevel === -1) {
-      console.warn('getSitesWithMinRole failed: invalid minimum role', { minRole });
+      console.warn('getSitesWithMinRole failed: invalid minimum role', {
+        minRole,
+      });
       return [];
     }
 
     return user.roles
-      .filter(siteRole => {
-        const userLevel = PermissionService.ROLE_HIERARCHY.indexOf(siteRole.role);
+      .filter((siteRole) => {
+        const userLevel = PermissionService.ROLE_HIERARCHY.indexOf(
+          siteRole.role,
+        );
         return userLevel >= minLevel;
       })
-      .map(siteRole => siteRole.siteId);
+      .map((siteRole) => siteRole.siteId);
   }
 
   /**
@@ -489,7 +630,11 @@ export class PermissionService {
    * @param action - Action to check (create, read, update, delete, exclude)
    * @returns Array of accessible flat resource types
    */
-  getAccessibleResources(user: User, siteId: string, action: Action): Resource[] {
+  getAccessibleResources(
+    user: User,
+    siteId: string,
+    action: Action,
+  ): Resource[] {
     if (!this.isLoaded) {
       console.warn('getAccessibleResources failed: permissions not loaded yet');
       return [];
@@ -513,16 +658,30 @@ export class PermissionService {
    * @param action - Action to check (create, read, update, delete, exclude)
    * @returns Array of accessible group sub-resources
    */
-  getAccessibleGroupSubResources(user: User, siteId: string, action: Action): GroupSubResource[] {
+  getAccessibleGroupSubResources(
+    user: User,
+    siteId: string,
+    action: Action,
+  ): GroupSubResource[] {
     if (!this.isLoaded) {
-      console.warn('getAccessibleGroupSubResources failed: permissions not loaded yet');
+      console.warn(
+        'getAccessibleGroupSubResources failed: permissions not loaded yet',
+      );
       return [];
     }
 
     const accessibleSubResources: GroupSubResource[] = [];
 
     for (const subResource of ALL_GROUP_SUB_RESOURCES) {
-      if (this.canPerformSiteAction(user, siteId, RESOURCES.GROUPS, action, subResource)) {
+      if (
+        this.canPerformSiteAction(
+          user,
+          siteId,
+          RESOURCES.GROUPS,
+          action,
+          subResource,
+        )
+      ) {
         accessibleSubResources.push(subResource);
       }
     }
@@ -537,16 +696,30 @@ export class PermissionService {
    * @param action - Action to check (create, read, update, delete, exclude)
    * @returns Array of accessible admin sub-resources
    */
-  getAccessibleAdminSubResources(user: User, siteId: string, action: Action): AdminSubResource[] {
+  getAccessibleAdminSubResources(
+    user: User,
+    siteId: string,
+    action: Action,
+  ): AdminSubResource[] {
     if (!this.isLoaded) {
-      console.warn('getAccessibleAdminSubResources failed: permissions not loaded yet');
+      console.warn(
+        'getAccessibleAdminSubResources failed: permissions not loaded yet',
+      );
       return [];
     }
 
     const accessibleSubResources: AdminSubResource[] = [];
 
     for (const subResource of ALL_ADMIN_SUB_RESOURCES) {
-      if (this.canPerformSiteAction(user, siteId, RESOURCES.ADMINS, action, subResource)) {
+      if (
+        this.canPerformSiteAction(
+          user,
+          siteId,
+          RESOURCES.ADMINS,
+          action,
+          subResource,
+        )
+      ) {
         accessibleSubResources.push(subResource);
       }
     }
@@ -563,29 +736,43 @@ export class PermissionService {
    * @param checks - Array of resource/action combinations to check
    * @returns Array of results with allowed status for each check
    */
-  bulkPermissionCheck(user: User, siteId: string, checks: PermissionCheck[]): BulkPermissionResult[] {
+  bulkPermissionCheck(
+    user: User,
+    siteId: string,
+    checks: PermissionCheck[],
+  ): BulkPermissionResult[] {
     if (!this.isLoaded) {
       console.warn('bulkPermissionCheck failed: permissions not loaded yet');
-      return checks.map(check => ({
+      return checks.map((check) => ({
         resource: check.resource,
         action: check.action,
         subResource: check.subResource,
-        allowed: false
+        allowed: false,
       }));
     }
 
     const checkHash = this.generateBulkCheckHash(checks);
-    const cacheKey = this.cache?.generateBulkPermissionKey(user.uid, siteId, checkHash);
-    
+    const cacheKey = this.cache?.generateBulkPermissionKey(
+      user.uid,
+      siteId,
+      checkHash,
+    );
+
     if (cacheKey && this.cache?.has(cacheKey)) {
       return this.cache.get<BulkPermissionResult[]>(cacheKey) || [];
     }
 
-    const results: BulkPermissionResult[] = checks.map(check => ({
+    const results: BulkPermissionResult[] = checks.map((check) => ({
       resource: check.resource,
       action: check.action,
       subResource: check.subResource,
-      allowed: this.canPerformSiteAction(user, siteId, check.resource, check.action, check.subResource)
+      allowed: this.canPerformSiteAction(
+        user,
+        siteId,
+        check.resource,
+        check.action,
+        check.subResource,
+      ),
     }));
 
     if (cacheKey) {
@@ -608,7 +795,10 @@ export class PermissionService {
 
     const rolePermissions = this.permissionMatrix[role];
     if (!rolePermissions) {
-      console.warn('getRolePermissions failed: role not found in permission matrix', { role });
+      console.warn(
+        'getRolePermissions failed: role not found in permission matrix',
+        { role },
+      );
       return {};
     }
 
@@ -624,23 +814,37 @@ export class PermissionService {
    * @param subResource - Optional sub-resource (required for groups and admins)
    * @returns True if the role has the permission
    */
-  roleHasPermission(role: Role, resource: Resource, action: Action, subResource?: SubResource): boolean {
+  roleHasPermission(
+    role: Role,
+    resource: Resource,
+    action: Action,
+    subResource?: SubResource,
+  ): boolean {
     if (!this.isLoaded) {
       console.warn('roleHasPermission failed: permissions not loaded yet');
       return false;
     }
 
     if (this.requiresSubResource(resource) && !subResource) {
-      console.warn('roleHasPermission failed: resource requires sub-resource', { resource });
+      console.warn('roleHasPermission failed: resource requires sub-resource', {
+        resource,
+      });
       return false;
     }
 
     if (subResource && !this.isValidSubResource(resource, subResource)) {
-      console.warn('roleHasPermission failed: invalid sub-resource', { resource, subResource });
+      console.warn('roleHasPermission failed: invalid sub-resource', {
+        resource,
+        subResource,
+      });
       return false;
     }
 
-    const allowedActions = this.getActionsForResource(role, resource, subResource);
+    const allowedActions = this.getActionsForResource(
+      role,
+      resource,
+      subResource,
+    );
     return allowedActions.includes(action);
   }
 
@@ -667,14 +871,16 @@ export class PermissionService {
 
   private generateBulkCheckHash(checks: PermissionCheck[]): string {
     const sortedChecks = checks
-      .map(check => {
+      .map((check) => {
         const subResStr = check.subResource ? `:${check.subResource}` : '';
         return `${check.resource}${subResStr}:${check.action}`;
       })
       .sort()
       .join('|');
-    
-    return btoa(sortedChecks).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+
+    return btoa(sortedChecks)
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .substring(0, 16);
   }
 
   /**
@@ -684,7 +890,7 @@ export class PermissionService {
   getCacheStats(): { size: number; enabled: boolean } {
     return {
       size: this.cache?.size() || 0,
-      enabled: !!this.cache
+      enabled: !!this.cache,
     };
   }
 }

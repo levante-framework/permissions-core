@@ -24,7 +24,7 @@ export type {
   PermEvent,
   PermEventSink,
   VersionInfo,
-  PermissionDocument
+  PermissionDocument,
 } from './types/permissions.js';
 
 // constants
@@ -41,7 +41,7 @@ export {
   ALL_ACTIONS,
   ALL_GROUP_SUB_RESOURCES,
   ALL_ADMIN_SUB_RESOURCES,
-  DEFAULT_PERMISSION_MATRIX
+  DEFAULT_PERMISSION_MATRIX,
 } from './types/constants.js';
 
 // core services
@@ -50,7 +50,7 @@ export { CacheService } from './services/cacheService.js';
 
 // utilities
 export { VersionHandler } from './utils/versionHandler.js';
-export type { 
-  VersionCompatibility, 
-  MigrationResult 
+export type {
+  VersionCompatibility,
+  MigrationResult,
 } from './utils/versionHandler.js';

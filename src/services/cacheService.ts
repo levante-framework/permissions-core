@@ -13,7 +13,8 @@ export class CacheService {
    * Creates a new CacheService instance with automatic cleanup.
    * @param defaultTtl - Default time-to-live in milliseconds (default: 1 hour)
    */
-  constructor(defaultTtl: number = 3600000) { // 1 hour default
+  constructor(defaultTtl: number = 3600000) {
+    // 1 hour default
     this.defaultTtl = defaultTtl;
     this.startCleanupTimer();
   }
@@ -31,7 +32,7 @@ export class CacheService {
     }
 
     const entry = this.cache.get(key);
-    
+
     if (!entry) {
       return null;
     }
@@ -61,7 +62,7 @@ export class CacheService {
 
     this.cache.set(key, {
       value,
-      expiresAt
+      expiresAt,
     });
   }
 
@@ -84,14 +85,14 @@ export class CacheService {
     }
 
     const keysToDelete: string[] = [];
-    
+
     for (const key of this.cache.keys()) {
       if (key.startsWith(`${userId}-`) || key === userId) {
         keysToDelete.push(key);
       }
     }
 
-    keysToDelete.forEach(key => this.cache.delete(key));
+    keysToDelete.forEach((key) => this.cache.delete(key));
   }
 
   /**
@@ -103,9 +104,18 @@ export class CacheService {
    * @param subResource - Optional sub-resource type
    * @returns Formatted cache key
    */
-  generatePermissionKey(userId: string, siteId: string, resource: string, action: string, subResource?: string): string {
+  generatePermissionKey(
+    userId: string,
+    siteId: string,
+    resource: string,
+    action: string,
+    subResource?: string,
+  ): string {
     if (!userId || !siteId || !resource || !action) {
-      console.warn('CacheService.generatePermissionKey failed: missing required parameters', { userId: !!userId, siteId, resource, action });
+      console.warn(
+        'CacheService.generatePermissionKey failed: missing required parameters',
+        { userId: !!userId, siteId, resource, action },
+      );
       return '';
     }
 
@@ -123,7 +133,10 @@ export class CacheService {
    */
   generateUserRoleKey(userId: string, siteId: string): string {
     if (!userId || !siteId) {
-      console.warn('CacheService.generateUserRoleKey failed: missing required parameters', { userId: !!userId, siteId });
+      console.warn(
+        'CacheService.generateUserRoleKey failed: missing required parameters',
+        { userId: !!userId, siteId },
+      );
       return '';
     }
     return `${userId}-${siteId}-role`;
@@ -136,9 +149,16 @@ export class CacheService {
    * @param checkHash - Hash of the permission checks
    * @returns Formatted cache key for bulk permissions
    */
-  generateBulkPermissionKey(userId: string, siteId: string, checkHash: string): string {
+  generateBulkPermissionKey(
+    userId: string,
+    siteId: string,
+    checkHash: string,
+  ): string {
     if (!userId || !siteId || !checkHash) {
-      console.warn('CacheService.generateBulkPermissionKey failed: missing required parameters', { userId: !!userId, siteId, checkHash: !!checkHash });
+      console.warn(
+        'CacheService.generateBulkPermissionKey failed: missing required parameters',
+        { userId: !!userId, siteId, checkHash: !!checkHash },
+      );
       return '';
     }
     return `${userId}-${siteId}-bulk-${checkHash}`;
@@ -161,7 +181,7 @@ export class CacheService {
       }
     }
 
-    keysToDelete.forEach(key => this.cache.delete(key));
+    keysToDelete.forEach((key) => this.cache.delete(key));
   }
 
   /**
@@ -198,13 +218,12 @@ export class CacheService {
 
     const entry = this.cache.get(key);
     if (!entry) return false;
-    
+
     if (Date.now() > entry.expiresAt) {
       this.cache.delete(key);
       return false;
     }
-    
+
     return true;
   }
 }
-
