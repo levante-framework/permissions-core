@@ -35,15 +35,15 @@ export class VersionHandler {
   private static readonly COMPATIBLE_VERSIONS = ['1.1.0'];
 
   static checkCompatibility(version: string): VersionCompatibility {
-    const isCompatible = this.COMPATIBLE_VERSIONS.includes(version);
+    const isCompatible = VersionHandler.COMPATIBLE_VERSIONS.includes(version);
     const requiresMigration =
-      !this.SUPPORTED_VERSIONS.includes(version) && isCompatible;
+      !VersionHandler.SUPPORTED_VERSIONS.includes(version) && isCompatible;
 
     return {
       isCompatible,
       requiresMigration,
-      supportedVersions: [...this.SUPPORTED_VERSIONS],
-      currentVersion: this.CURRENT_VERSION,
+      supportedVersions: [...VersionHandler.SUPPORTED_VERSIONS],
+      currentVersion: VersionHandler.CURRENT_VERSION,
     };
   }
 
@@ -214,7 +214,8 @@ export class VersionHandler {
           };
       }
 
-      const validation = this.validatePermissionMatrix(migratedMatrix);
+      const validation =
+        VersionHandler.validatePermissionMatrix(migratedMatrix);
       if (!validation.isValid) {
         errors.push(...validation.errors);
         return {
@@ -254,7 +255,8 @@ export class VersionHandler {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    const documentValidation = this.validatePermissionDocument(document);
+    const documentValidation =
+      VersionHandler.validatePermissionDocument(document);
     if (!documentValidation.isValid) {
       return {
         success: false,
@@ -263,7 +265,7 @@ export class VersionHandler {
       };
     }
 
-    const compatibility = this.checkCompatibility(document.version);
+    const compatibility = VersionHandler.checkCompatibility(document.version);
     if (!compatibility.isCompatible) {
       errors.push(
         `Incompatible version: ${document.version}. Supported versions: ${compatibility.supportedVersions.join(', ')}`,
@@ -277,10 +279,10 @@ export class VersionHandler {
 
     if (compatibility.requiresMigration) {
       warnings.push(
-        `Version ${document.version} requires migration to ${this.CURRENT_VERSION}`,
+        `Version ${document.version} requires migration to ${VersionHandler.CURRENT_VERSION}`,
       );
 
-      const migrationResult = this.migratePermissionMatrix(
+      const migrationResult = VersionHandler.migratePermissionMatrix(
         document.permissions,
         document.version,
       );
@@ -297,13 +299,13 @@ export class VersionHandler {
       return {
         success: true,
         permissionMatrix: migrationResult.migratedMatrix,
-        version: this.CURRENT_VERSION,
+        version: VersionHandler.CURRENT_VERSION,
         errors,
         warnings,
       };
     }
 
-    const matrixValidation = this.validatePermissionMatrix(
+    const matrixValidation = VersionHandler.validatePermissionMatrix(
       document.permissions,
     );
     if (!matrixValidation.isValid) {
@@ -325,10 +327,10 @@ export class VersionHandler {
   }
 
   static getCurrentVersion(): string {
-    return this.CURRENT_VERSION;
+    return VersionHandler.CURRENT_VERSION;
   }
 
   static getSupportedVersions(): string[] {
-    return [...this.SUPPORTED_VERSIONS];
+    return [...VersionHandler.SUPPORTED_VERSIONS];
   }
 }
