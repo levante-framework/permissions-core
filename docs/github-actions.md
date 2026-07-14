@@ -4,25 +4,29 @@ This document describes the GitHub Actions workflows configured for the permissi
 
 ## Workflows
 
-### 1. Test Workflow (`.github/workflows/test.yml`)
+### 1. CI Workflow (`.github/workflows/ci.yml`)
 
 **Triggers:**
 - Pull requests to `main` branch
 - Pushes to `main` branch
 
 **Features:**
-- Tests on current LTS and previous LTS Node.js versions
-- Runs TypeScript compilation
+- Runs on a matrix of Node.js versions (22 and 24)
+- Runs formatter and linter checks with Biome
 - Executes full test suite
-- Validates package can be built
+- Runs TypeScript compilation
+- Validates package can be packed
+- Cancels superseded runs for the same ref via concurrency
+- Runs with least-privilege `contents: read` permissions
 
 **Steps:**
 1. Checkout code
-2. Setup Node.js with npm cache
+2. Setup Node.js (matrix version) with npm cache
 3. Install dependencies with `npm ci`
-4. Run TypeScript build
-5. Run tests
-6. Verify package can be packed
+4. Run checks with `npm run check`
+5. Run tests with `npm run test:run`
+6. Run TypeScript build with `npm run build`
+7. Verify package can be packed with `npm pack --dry-run`
 
 ### 2. Publish Workflow (`.github/workflows/publish.yml`)
 
@@ -60,10 +64,10 @@ This is automatically provided by GitHub Actions - no setup required.
 ## Package Configuration
 
 The workflows assume:
-- Package name: `@yourorg/permissions-core`
+- Package name: `@levante-framework/permissions-core`
 - Main branch: `main`
-- Node.js versions: Current LTS and previous LTS
-- NPM scripts: `build`, `test:run`
+- Node.js versions: 22 and 24
+- NPM scripts: `build`, `check`, `test:run`
 
 ## Version Management
 
