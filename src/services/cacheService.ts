@@ -92,7 +92,9 @@ export class CacheService {
       }
     }
 
-    keysToDelete.forEach((key) => this.cache.delete(key));
+    keysToDelete.forEach((key) => {
+      this.cache.delete(key);
+    });
   }
 
   /**
@@ -181,7 +183,9 @@ export class CacheService {
       }
     }
 
-    keysToDelete.forEach((key) => this.cache.delete(key));
+    keysToDelete.forEach((key) => {
+      this.cache.delete(key);
+    });
   }
 
   /**
