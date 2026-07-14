@@ -23,7 +23,7 @@ import type {
   User,
 } from '../types/permissions.js';
 import { VersionHandler } from '../utils/versionHandler.js';
-import { CacheService } from './cacheService.js';
+import type { CacheService } from './cacheService.js';
 
 const NoopPermEventSink: PermEventSink = Object.freeze({
   isEnabled: () => false,
