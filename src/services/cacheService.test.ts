@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CacheService } from './cacheService.js';
 
 describe('CacheService', () => {
@@ -63,25 +63,25 @@ describe('CacheService', () => {
     it('should expire entries after TTL', async () => {
       cache.set('expire-key', 'expire-value', { ttl: 100 });
       expect(cache.get('expire-key')).toBe('expire-value');
-      
-      await new Promise(resolve => setTimeout(resolve, 150));
+
+      await new Promise((resolve) => setTimeout(resolve, 150));
       expect(cache.get('expire-key')).toBeNull();
     });
 
     it('should use default TTL when no options provided', async () => {
       cache.set('default-ttl', 'value');
       expect(cache.get('default-ttl')).toBe('value');
-      
+
       // Should still be there after a short time
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       expect(cache.get('default-ttl')).toBe('value');
     });
 
     it('should use custom TTL when provided', async () => {
       cache.set('custom-ttl', 'value', { ttl: 50 });
       expect(cache.get('custom-ttl')).toBe('value');
-      
-      await new Promise(resolve => setTimeout(resolve, 100));
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
       expect(cache.get('custom-ttl')).toBeNull();
     });
   });
@@ -99,8 +99,8 @@ describe('CacheService', () => {
     it('should return false for expired entries', async () => {
       cache.set('will-expire', 'value', { ttl: 50 });
       expect(cache.has('will-expire')).toBe(true);
-      
-      await new Promise(resolve => setTimeout(resolve, 100));
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
       expect(cache.has('will-expire')).toBe(false);
     });
   });
@@ -110,11 +110,11 @@ describe('CacheService', () => {
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key3', 'value3');
-      
+
       expect(cache.size()).toBe(3);
       cache.clear();
       expect(cache.size()).toBe(0);
-      
+
       expect(cache.get('key1')).toBeNull();
       expect(cache.get('key2')).toBeNull();
       expect(cache.get('key3')).toBeNull();
@@ -125,11 +125,11 @@ describe('CacheService', () => {
       cache.set('user123-site2-users-create', false);
       cache.set('user456-site1-groups-read', true);
       cache.set('other-key', 'value');
-      
+
       expect(cache.size()).toBe(4);
       cache.clearUser('user123');
       expect(cache.size()).toBe(2);
-      
+
       expect(cache.get('user123-site1-groups-read')).toBeNull();
       expect(cache.get('user123-site2-users-create')).toBeNull();
       expect(cache.get('user456-site1-groups-read')).toBe(true);
@@ -140,9 +140,9 @@ describe('CacheService', () => {
       cache.set('user123', 'user-data');
       cache.set('user123-site1-role', 'admin');
       cache.set('user456', 'other-user-data');
-      
+
       cache.clearUser('user123');
-      
+
       expect(cache.get('user123')).toBeNull();
       expect(cache.get('user123-site1-role')).toBeNull();
       expect(cache.get('user456')).toBe('other-user-data');
@@ -151,7 +151,12 @@ describe('CacheService', () => {
 
   describe('key generation utilities', () => {
     it('should generate permission keys', () => {
-      const key = cache.generatePermissionKey('user123', 'site456', 'groups', 'read');
+      const key = cache.generatePermissionKey(
+        'user123',
+        'site456',
+        'groups',
+        'read',
+      );
       expect(key).toBe('user123-site456-groups-read');
     });
 
@@ -161,7 +166,11 @@ describe('CacheService', () => {
     });
 
     it('should generate bulk permission keys', () => {
-      const key = cache.generateBulkPermissionKey('user123', 'site456', 'hash123');
+      const key = cache.generateBulkPermissionKey(
+        'user123',
+        'site456',
+        'hash123',
+      );
       expect(key).toBe('user123-site456-bulk-hash123');
     });
   });
@@ -169,13 +178,13 @@ describe('CacheService', () => {
   describe('size method', () => {
     it('should return correct cache size', () => {
       expect(cache.size()).toBe(0);
-      
+
       cache.set('key1', 'value1');
       expect(cache.size()).toBe(1);
-      
+
       cache.set('key2', 'value2');
       expect(cache.size()).toBe(2);
-      
+
       cache.clear();
       expect(cache.size()).toBe(0);
     });
@@ -183,11 +192,11 @@ describe('CacheService', () => {
     it('should not count expired entries in size', async () => {
       cache.set('key1', 'value1', { ttl: 50 });
       cache.set('key2', 'value2');
-      
+
       expect(cache.size()).toBe(2);
-      
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       // Accessing expired entry should remove it
       cache.get('key1');
       expect(cache.size()).toBe(1);
@@ -198,9 +207,9 @@ describe('CacheService', () => {
     it('should start cleanup timer on construction', () => {
       const spySetInterval = vi.spyOn(global, 'setInterval');
       const testCache = new CacheService();
-      
+
       expect(spySetInterval).toHaveBeenCalledWith(expect.any(Function), 300000);
-      
+
       testCache.destroy();
       spySetInterval.mockRestore();
     });
@@ -210,17 +219,17 @@ describe('CacheService', () => {
       cache.set('expire1', 'value1', { ttl: 25 });
       cache.set('expire2', 'value2', { ttl: 25 });
       cache.set('keep', 'value3', { ttl: 200 });
-      
+
       expect(cache.size()).toBe(3);
-      
+
       // Wait for some entries to expire
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
       // Accessing expired entries should remove them
       expect(cache.get('expire1')).toBeNull();
       expect(cache.get('expire2')).toBeNull();
       expect(cache.get('keep')).toBe('value3');
-      
+
       // Size should now reflect the cleanup
       expect(cache.size()).toBe(1);
     });
@@ -229,24 +238,24 @@ describe('CacheService', () => {
   describe('destroy method', () => {
     it('should clear cache and stop cleanup timer', () => {
       const spyClearInterval = vi.spyOn(global, 'clearInterval');
-      
+
       cache.set('key', 'value');
       expect(cache.size()).toBe(1);
-      
+
       cache.destroy();
-      
+
       expect(cache.size()).toBe(0);
       expect(spyClearInterval).toHaveBeenCalled();
-      
+
       spyClearInterval.mockRestore();
     });
 
     it('should handle multiple destroy calls gracefully', () => {
       cache.set('key', 'value');
-      
+
       cache.destroy();
       expect(cache.size()).toBe(0);
-      
+
       // Should not throw
       expect(() => cache.destroy()).not.toThrow();
     });

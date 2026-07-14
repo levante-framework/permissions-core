@@ -1,4 +1,9 @@
-export type Role = 'super_admin' | 'site_admin' | 'admin' | 'research_assistant' | 'participant';
+export type Role =
+  | 'super_admin'
+  | 'site_admin'
+  | 'admin'
+  | 'research_assistant'
+  | 'participant';
 
 export type Action = 'create' | 'read' | 'update' | 'delete' | 'exclude';
 
@@ -6,7 +11,11 @@ export type Resource = 'groups' | 'assignments' | 'users' | 'admins' | 'tasks';
 
 export type GroupSubResource = 'sites' | 'schools' | 'classes' | 'cohorts';
 
-export type AdminSubResource = 'site_admin' | 'admin' | 'research_assistant' | 'super_admin';
+export type AdminSubResource =
+  | 'site_admin'
+  | 'admin'
+  | 'research_assistant'
+  | 'super_admin';
 
 export type SubResource = GroupSubResource | AdminSubResource;
 

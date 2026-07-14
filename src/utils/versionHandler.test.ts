@@ -1,106 +1,109 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import type {
+  PermissionDocument,
+  PermissionMatrix,
+} from '../types/permissions.js';
 import { VersionHandler } from './versionHandler.js';
-import type { PermissionMatrix, PermissionDocument } from '../types/permissions.js';
 
 describe('VersionHandler', () => {
   const validPermissionMatrix: PermissionMatrix = {
-    'super_admin': {
-      'groups': {
-        'sites': ['create', 'read', 'update', 'delete', 'exclude'],
-        'schools': ['create', 'read', 'update', 'delete', 'exclude'],
-        'classes': ['create', 'read', 'update', 'delete', 'exclude'],
-        'cohorts': ['create', 'read', 'update', 'delete', 'exclude']
+    super_admin: {
+      groups: {
+        sites: ['create', 'read', 'update', 'delete', 'exclude'],
+        schools: ['create', 'read', 'update', 'delete', 'exclude'],
+        classes: ['create', 'read', 'update', 'delete', 'exclude'],
+        cohorts: ['create', 'read', 'update', 'delete', 'exclude'],
       },
-      'assignments': ['create', 'read', 'update', 'delete', 'exclude'],
-      'users': ['create', 'read', 'update', 'delete', 'exclude'],
-      'admins': {
-        'site_admin': ['create', 'read', 'update', 'delete'],
-        'admin': ['create', 'read', 'update', 'delete'],
-        'research_assistant': ['create', 'read', 'update', 'delete'],
-        'super_admin': ['create', 'read', 'update', 'delete']
+      assignments: ['create', 'read', 'update', 'delete', 'exclude'],
+      users: ['create', 'read', 'update', 'delete', 'exclude'],
+      admins: {
+        site_admin: ['create', 'read', 'update', 'delete'],
+        admin: ['create', 'read', 'update', 'delete'],
+        research_assistant: ['create', 'read', 'update', 'delete'],
+        super_admin: ['create', 'read', 'update', 'delete'],
       },
-      'tasks': ['create', 'read', 'update', 'delete', 'exclude']
+      tasks: ['create', 'read', 'update', 'delete', 'exclude'],
     },
-    'site_admin': {
-      'groups': {
-        'sites': ['read', 'update'],
-        'schools': ['create', 'read', 'update', 'delete', 'exclude'],
-        'classes': ['create', 'read', 'update', 'delete', 'exclude'],
-        'cohorts': ['create', 'read', 'update', 'delete', 'exclude']
+    site_admin: {
+      groups: {
+        sites: ['read', 'update'],
+        schools: ['create', 'read', 'update', 'delete', 'exclude'],
+        classes: ['create', 'read', 'update', 'delete', 'exclude'],
+        cohorts: ['create', 'read', 'update', 'delete', 'exclude'],
       },
-      'assignments': ['create', 'read', 'update', 'delete', 'exclude'],
-      'users': ['create', 'read', 'update', 'delete', 'exclude'],
-      'admins': {
-        'site_admin': ['create', 'read'],
-        'admin': ['create', 'read', 'update', 'delete', 'exclude'],
-        'research_assistant': ['create', 'read', 'update', 'delete'],
-        'super_admin': []
+      assignments: ['create', 'read', 'update', 'delete', 'exclude'],
+      users: ['create', 'read', 'update', 'delete', 'exclude'],
+      admins: {
+        site_admin: ['create', 'read'],
+        admin: ['create', 'read', 'update', 'delete', 'exclude'],
+        research_assistant: ['create', 'read', 'update', 'delete'],
+        super_admin: [],
       },
-      'tasks': ['create', 'read', 'update', 'delete', 'exclude']
+      tasks: ['create', 'read', 'update', 'delete', 'exclude'],
     },
-    'admin': {
-      'groups': {
-        'sites': ['read', 'update'],
-        'schools': ['read', 'update', 'delete'],
-        'classes': ['read', 'update', 'delete'],
-        'cohorts': ['read', 'update', 'delete']
+    admin: {
+      groups: {
+        sites: ['read', 'update'],
+        schools: ['read', 'update', 'delete'],
+        classes: ['read', 'update', 'delete'],
+        cohorts: ['read', 'update', 'delete'],
       },
-      'assignments': ['create', 'read', 'update', 'delete'],
-      'users': ['create', 'read', 'update'],
-      'admins': {
-        'site_admin': ['read'],
-        'admin': ['read'],
-        'research_assistant': ['create', 'read'],
-        'super_admin': []
+      assignments: ['create', 'read', 'update', 'delete'],
+      users: ['create', 'read', 'update'],
+      admins: {
+        site_admin: ['read'],
+        admin: ['read'],
+        research_assistant: ['create', 'read'],
+        super_admin: [],
       },
-      'tasks': ['read']
+      tasks: ['read'],
     },
-    'research_assistant': {
-      'groups': {
-        'sites': ['read'],
-        'schools': ['read'],
-        'classes': ['read'],
-        'cohorts': ['read']
+    research_assistant: {
+      groups: {
+        sites: ['read'],
+        schools: ['read'],
+        classes: ['read'],
+        cohorts: ['read'],
       },
-      'assignments': ['read'],
-      'users': ['create', 'read'],
-      'admins': {
-        'site_admin': ['read'],
-        'admin': ['read'],
-        'research_assistant': ['read'],
-        'super_admin': []
+      assignments: ['read'],
+      users: ['create', 'read'],
+      admins: {
+        site_admin: ['read'],
+        admin: ['read'],
+        research_assistant: ['read'],
+        super_admin: [],
       },
-      'tasks': ['read']
+      tasks: ['read'],
     },
-    'participant': {
-      'groups': {
-        'sites': [],
-        'schools': [],
-        'classes': [],
-        'cohorts': []
+    participant: {
+      groups: {
+        sites: [],
+        schools: [],
+        classes: [],
+        cohorts: [],
       },
-      'assignments': [],
-      'users': [],
-      'admins': {
-        'site_admin': [],
-        'admin': [],
-        'research_assistant': [],
-        'super_admin': []
+      assignments: [],
+      users: [],
+      admins: {
+        site_admin: [],
+        admin: [],
+        research_assistant: [],
+        super_admin: [],
       },
-      'tasks': []
-    }
+      tasks: [],
+    },
   };
 
   const validPermissionDocument: PermissionDocument = {
     permissions: validPermissionMatrix,
     version: '1.1.0',
-    updatedAt: '2025-01-01T00:00:00Z'
+    updatedAt: '2025-01-01T00:00:00Z',
   };
 
   describe('checkCompatibility', () => {
     it('should return compatible for supported version', () => {
       const result = VersionHandler.checkCompatibility('1.1.0');
-      
+
       expect(result.isCompatible).toBe(true);
       expect(result.requiresMigration).toBe(false);
       expect(result.currentVersion).toBe('1.1.0');
@@ -109,7 +112,7 @@ describe('VersionHandler', () => {
 
     it('should return incompatible for unsupported version', () => {
       const result = VersionHandler.checkCompatibility('2.0.0');
-      
+
       expect(result.isCompatible).toBe(false);
       expect(result.requiresMigration).toBe(false);
       expect(result.currentVersion).toBe('1.1.0');
@@ -117,7 +120,7 @@ describe('VersionHandler', () => {
 
     it('should handle empty version string', () => {
       const result = VersionHandler.checkCompatibility('');
-      
+
       expect(result.isCompatible).toBe(false);
       expect(result.requiresMigration).toBe(false);
     });
@@ -125,8 +128,10 @@ describe('VersionHandler', () => {
 
   describe('validatePermissionDocument', () => {
     it('should validate correct permission document', () => {
-      const result = VersionHandler.validatePermissionDocument(validPermissionDocument);
-      
+      const result = VersionHandler.validatePermissionDocument(
+        validPermissionDocument,
+      );
+
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
@@ -134,17 +139,17 @@ describe('VersionHandler', () => {
     it('should reject null/undefined document', () => {
       const result1 = VersionHandler.validatePermissionDocument(null);
       const result2 = VersionHandler.validatePermissionDocument(undefined);
-      
+
       expect(result1.isValid).toBe(false);
       expect(result1.errors).toContain('Permission document must be an object');
-      
+
       expect(result2.isValid).toBe(false);
       expect(result2.errors).toContain('Permission document must be an object');
     });
 
     it('should reject non-object document', () => {
       const result = VersionHandler.validatePermissionDocument('not an object');
-      
+
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Permission document must be an object');
     });
@@ -152,11 +157,11 @@ describe('VersionHandler', () => {
     it('should reject document missing permissions', () => {
       const invalidDoc = {
         version: '1.1.0',
-        updatedAt: '2025-01-01T00:00:00Z'
+        updatedAt: '2025-01-01T00:00:00Z',
       };
-      
+
       const result = VersionHandler.validatePermissionDocument(invalidDoc);
-      
+
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Missing permissions property');
     });
@@ -164,11 +169,11 @@ describe('VersionHandler', () => {
     it('should reject document missing version', () => {
       const invalidDoc = {
         permissions: validPermissionMatrix,
-        updatedAt: '2025-01-01T00:00:00Z'
+        updatedAt: '2025-01-01T00:00:00Z',
       };
-      
+
       const result = VersionHandler.validatePermissionDocument(invalidDoc);
-      
+
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Missing version property');
     });
@@ -176,11 +181,11 @@ describe('VersionHandler', () => {
     it('should reject document missing updatedAt', () => {
       const invalidDoc = {
         permissions: validPermissionMatrix,
-        version: '1.1.0'
+        version: '1.1.0',
       };
-      
+
       const result = VersionHandler.validatePermissionDocument(invalidDoc);
-      
+
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Missing updatedAt property');
     });
@@ -189,11 +194,11 @@ describe('VersionHandler', () => {
       const invalidDoc = {
         permissions: 'not an object',
         version: '1.1.0',
-        updatedAt: '2025-01-01T00:00:00Z'
+        updatedAt: '2025-01-01T00:00:00Z',
       };
-      
+
       const result = VersionHandler.validatePermissionDocument(invalidDoc);
-      
+
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Permissions must be an object');
     });
@@ -201,142 +206,165 @@ describe('VersionHandler', () => {
 
   describe('validatePermissionMatrix', () => {
     it('should validate correct permission matrix', () => {
-      const result = VersionHandler.validatePermissionMatrix(validPermissionMatrix);
-      
+      const result = VersionHandler.validatePermissionMatrix(
+        validPermissionMatrix,
+      );
+
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
 
     it('should reject null/undefined matrix', () => {
-      const result1 = VersionHandler.validatePermissionMatrix(null as any);
-      const result2 = VersionHandler.validatePermissionMatrix(undefined as any);
-      
+      const result1 = VersionHandler.validatePermissionMatrix(
+        null as unknown as PermissionMatrix,
+      );
+      const result2 = VersionHandler.validatePermissionMatrix(
+        undefined as unknown as PermissionMatrix,
+      );
+
       expect(result1.isValid).toBe(false);
       expect(result1.errors).toContain('Permission matrix must be an object');
-      
+
       expect(result2.isValid).toBe(false);
       expect(result2.errors).toContain('Permission matrix must be an object');
     });
 
     it('should reject invalid role names', () => {
       const invalidMatrix = {
-        'invalid_role': {
-          'groups': ['read']
-        }
-      };
-      
-      const result = VersionHandler.validatePermissionMatrix(invalidMatrix as any);
-      
+        invalid_role: {
+          groups: ['read'],
+        },
+      } as unknown as PermissionMatrix;
+
+      const result = VersionHandler.validatePermissionMatrix(invalidMatrix);
+
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Invalid role: invalid_role');
     });
 
     it('should reject invalid resource names', () => {
       const invalidMatrix = {
-        'admin': {
-          'invalid_resource': ['read']
-        }
-      };
-      
-      const result = VersionHandler.validatePermissionMatrix(invalidMatrix as any);
-      
+        admin: {
+          invalid_resource: ['read'],
+        },
+      } as unknown as PermissionMatrix;
+
+      const result = VersionHandler.validatePermissionMatrix(invalidMatrix);
+
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Invalid resource: invalid_resource for role admin');
+      expect(result.errors).toContain(
+        'Invalid resource: invalid_resource for role admin',
+      );
     });
 
     it('should reject invalid action names', () => {
       const invalidMatrix = {
-        'admin': {
-          'groups': {
-            'sites': ['invalid_action'],
-            'schools': [],
-            'classes': [],
-            'cohorts': []
+        admin: {
+          groups: {
+            sites: ['invalid_action'],
+            schools: [],
+            classes: [],
+            cohorts: [],
           },
-          'admins': {
-            'site_admin': [],
-            'admin': [],
-            'research_assistant': [],
-            'super_admin': []
+          admins: {
+            site_admin: [],
+            admin: [],
+            research_assistant: [],
+            super_admin: [],
           },
-          'assignments': [],
-          'users': [],
-          'tasks': []
-        }
-      };
-      
-      const result = VersionHandler.validatePermissionMatrix(invalidMatrix as any);
-      
+          assignments: [],
+          users: [],
+          tasks: [],
+        },
+      } as unknown as PermissionMatrix;
+
+      const result = VersionHandler.validatePermissionMatrix(invalidMatrix);
+
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Invalid action: invalid_action for admin.groups.sites');
+      expect(result.errors).toContain(
+        'Invalid action: invalid_action for admin.groups.sites',
+      );
     });
 
     it('should reject non-object resources', () => {
       const invalidMatrix = {
-        'admin': 'not an object'
-      };
-      
-      const result = VersionHandler.validatePermissionMatrix(invalidMatrix as any);
-      
+        admin: 'not an object',
+      } as unknown as PermissionMatrix;
+
+      const result = VersionHandler.validatePermissionMatrix(invalidMatrix);
+
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Role admin must have resources object');
     });
 
     it('should reject non-object for nested resources', () => {
       const invalidMatrix = {
-        'admin': {
-          'groups': 'not an object',
-          'admins': {
-            'site_admin': [],
-            'admin': [],
-            'research_assistant': [],
-            'super_admin': []
+        admin: {
+          groups: 'not an object',
+          admins: {
+            site_admin: [],
+            admin: [],
+            research_assistant: [],
+            super_admin: [],
           },
-          'assignments': [],
-          'users': [],
-          'tasks': []
-        }
-      };
-      
-      const result = VersionHandler.validatePermissionMatrix(invalidMatrix as any);
-      
+          assignments: [],
+          users: [],
+          tasks: [],
+        },
+      } as unknown as PermissionMatrix;
+
+      const result = VersionHandler.validatePermissionMatrix(invalidMatrix);
+
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('admin.groups must be an object with sub-resources');
+      expect(result.errors).toContain(
+        'admin.groups must be an object with sub-resources',
+      );
     });
   });
 
   describe('migratePermissionMatrix', () => {
     it('should successfully migrate v1.1.0 matrix', () => {
-      const result = VersionHandler.migratePermissionMatrix(validPermissionMatrix, '1.1.0');
-      
+      const result = VersionHandler.migratePermissionMatrix(
+        validPermissionMatrix,
+        '1.1.0',
+      );
+
       expect(result.success).toBe(true);
       expect(result.migratedMatrix).toEqual(validPermissionMatrix);
       expect(result.errors).toHaveLength(0);
     });
 
     it('should fail migration for unsupported version', () => {
-      const result = VersionHandler.migratePermissionMatrix(validPermissionMatrix, '2.0.0');
-      
+      const result = VersionHandler.migratePermissionMatrix(
+        validPermissionMatrix,
+        '2.0.0',
+      );
+
       expect(result.success).toBe(false);
-      expect(result.errors).toContain('Unsupported version for migration: 2.0.0');
+      expect(result.errors).toContain(
+        'Unsupported version for migration: 2.0.0',
+      );
     });
 
     it('should fail migration for invalid matrix', () => {
       const invalidMatrix = {
-        'invalid_role': {
-          'groups': ['read']
-        }
+        invalid_role: {
+          groups: ['read'],
+        },
       };
-      
-      const result = VersionHandler.migratePermissionMatrix(invalidMatrix, '1.1.0');
-      
+
+      const result = VersionHandler.migratePermissionMatrix(
+        invalidMatrix,
+        '1.1.0',
+      );
+
       expect(result.success).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
     });
 
     it('should handle migration errors gracefully', () => {
       const result = VersionHandler.migratePermissionMatrix(null, '1.1.0');
-      
+
       expect(result.success).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
     });
@@ -344,8 +372,10 @@ describe('VersionHandler', () => {
 
   describe('processPermissionDocument', () => {
     it('should successfully process valid document', () => {
-      const result = VersionHandler.processPermissionDocument(validPermissionDocument);
-      
+      const result = VersionHandler.processPermissionDocument(
+        validPermissionDocument,
+      );
+
       expect(result.success).toBe(true);
       expect(result.permissionMatrix).toEqual(validPermissionMatrix);
       expect(result.version).toBe('1.1.0');
@@ -355,11 +385,11 @@ describe('VersionHandler', () => {
     it('should fail for invalid document structure', () => {
       const invalidDoc = {
         permissions: 'invalid',
-        version: '1.1.0'
+        version: '1.1.0',
       };
-      
+
       const result = VersionHandler.processPermissionDocument(invalidDoc);
-      
+
       expect(result.success).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
     });
@@ -367,36 +397,40 @@ describe('VersionHandler', () => {
     it('should fail for incompatible version', () => {
       const incompatibleDoc = {
         ...validPermissionDocument,
-        version: '2.0.0'
+        version: '2.0.0',
       };
-      
+
       const result = VersionHandler.processPermissionDocument(incompatibleDoc);
-      
+
       expect(result.success).toBe(false);
-      expect(result.errors).toContain('Incompatible version: 2.0.0. Supported versions: 1.1.0');
+      expect(result.errors).toContain(
+        'Incompatible version: 2.0.0. Supported versions: 1.1.0',
+      );
     });
 
     it('should fail for invalid permission matrix', () => {
       const invalidDoc = {
         permissions: {
-          'invalid_role': {
-            'groups': ['read']
-          }
+          invalid_role: {
+            groups: ['read'],
+          },
         },
         version: '1.1.0',
-        updatedAt: '2025-01-01T00:00:00Z'
+        updatedAt: '2025-01-01T00:00:00Z',
       };
-      
+
       const result = VersionHandler.processPermissionDocument(invalidDoc);
-      
+
       expect(result.success).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
     });
 
     it('should handle migration scenarios', () => {
       // For now, v1.1.0 doesn't require migration, but test the structure
-      const result = VersionHandler.processPermissionDocument(validPermissionDocument);
-      
+      const result = VersionHandler.processPermissionDocument(
+        validPermissionDocument,
+      );
+
       expect(result.success).toBe(true);
       expect(result.warnings).toHaveLength(0); // No migration needed for 1.1.0
     });
@@ -419,18 +453,19 @@ describe('VersionHandler', () => {
     it('should handle empty permission matrix', () => {
       const emptyMatrix = {};
       const result = VersionHandler.validatePermissionMatrix(emptyMatrix);
-      
+
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
 
     it('should reject role with empty resources', () => {
       const matrixWithEmptyRole = {
-        'admin': {}
-      };
-      
-      const result = VersionHandler.validatePermissionMatrix(matrixWithEmptyRole as any);
-      
+        admin: {},
+      } as unknown as PermissionMatrix;
+
+      const result =
+        VersionHandler.validatePermissionMatrix(matrixWithEmptyRole);
+
       // Empty role is technically valid (just has no resources)
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
@@ -438,16 +473,20 @@ describe('VersionHandler', () => {
 
     it('should reject groups resource with invalid structure', () => {
       const matrixWithInvalidGroups = {
-        'admin': {
-          'groups': []
-        }
-      };
-      
-      const result = VersionHandler.validatePermissionMatrix(matrixWithInvalidGroups as any);
-      
+        admin: {
+          groups: [],
+        },
+      } as unknown as PermissionMatrix;
+
+      const result = VersionHandler.validatePermissionMatrix(
+        matrixWithInvalidGroups,
+      );
+
       // groups must be an object with sub-resources, not an array
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('admin.groups must be an object with sub-resources');
+      expect(result.errors).toContain(
+        'admin.groups must be an object with sub-resources',
+      );
     });
   });
 });

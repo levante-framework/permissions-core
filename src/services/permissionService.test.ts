@@ -1,120 +1,118 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { PermissionService } from './permissionService.js';
-import { CacheService } from './cacheService.js';
-import type { 
-  User, 
-  PermissionDocument, 
-  PermissionMatrix,
-  PermissionCheck,
-  Role,
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type {
   PermEvent,
-  PermEventSink
+  PermEventSink,
+  PermissionCheck,
+  PermissionDocument,
+  PermissionMatrix,
+  Role,
+  User,
 } from '../types/permissions.js';
+import { CacheService } from './cacheService.js';
+import { PermissionService } from './permissionService.js';
 
 describe('PermissionService', () => {
   let service: PermissionService;
   let cache: CacheService;
 
   const validPermissionMatrix: PermissionMatrix = {
-    'super_admin': {
-      'groups': {
-        'sites': ['create', 'read', 'update', 'delete', 'exclude'],
-        'schools': ['create', 'read', 'update', 'delete', 'exclude'],
-        'classes': ['create', 'read', 'update', 'delete', 'exclude'],
-        'cohorts': ['create', 'read', 'update', 'delete', 'exclude']
+    super_admin: {
+      groups: {
+        sites: ['create', 'read', 'update', 'delete', 'exclude'],
+        schools: ['create', 'read', 'update', 'delete', 'exclude'],
+        classes: ['create', 'read', 'update', 'delete', 'exclude'],
+        cohorts: ['create', 'read', 'update', 'delete', 'exclude'],
       },
-      'assignments': ['create', 'read', 'update', 'delete', 'exclude'],
-      'users': ['create', 'read', 'update', 'delete', 'exclude'],
-      'admins': {
-        'site_admin': ['create', 'read', 'update', 'delete'],
-        'admin': ['create', 'read', 'update', 'delete'],
-        'research_assistant': ['create', 'read', 'update', 'delete'],
-        'super_admin': ['create', 'read', 'update', 'delete']
+      assignments: ['create', 'read', 'update', 'delete', 'exclude'],
+      users: ['create', 'read', 'update', 'delete', 'exclude'],
+      admins: {
+        site_admin: ['create', 'read', 'update', 'delete'],
+        admin: ['create', 'read', 'update', 'delete'],
+        research_assistant: ['create', 'read', 'update', 'delete'],
+        super_admin: ['create', 'read', 'update', 'delete'],
       },
-      'tasks': ['create', 'read', 'update', 'delete', 'exclude']
+      tasks: ['create', 'read', 'update', 'delete', 'exclude'],
     },
-    'site_admin': {
-      'groups': {
-        'sites': ['read', 'update'],
-        'schools': ['create', 'read', 'update', 'delete', 'exclude'],
-        'classes': ['create', 'read', 'update', 'delete', 'exclude'],
-        'cohorts': ['create', 'read', 'update', 'delete', 'exclude']
+    site_admin: {
+      groups: {
+        sites: ['read', 'update'],
+        schools: ['create', 'read', 'update', 'delete', 'exclude'],
+        classes: ['create', 'read', 'update', 'delete', 'exclude'],
+        cohorts: ['create', 'read', 'update', 'delete', 'exclude'],
       },
-      'assignments': ['create', 'read', 'update', 'delete', 'exclude'],
-      'users': ['create', 'read', 'update', 'delete', 'exclude'],
-      'admins': {
-        'site_admin': ['create', 'read'],
-        'admin': ['create', 'read', 'update', 'delete', 'exclude'],
-        'research_assistant': ['create', 'read', 'update', 'delete'],
-        'super_admin': []
+      assignments: ['create', 'read', 'update', 'delete', 'exclude'],
+      users: ['create', 'read', 'update', 'delete', 'exclude'],
+      admins: {
+        site_admin: ['create', 'read'],
+        admin: ['create', 'read', 'update', 'delete', 'exclude'],
+        research_assistant: ['create', 'read', 'update', 'delete'],
+        super_admin: [],
       },
-      'tasks': ['create', 'read', 'update', 'delete', 'exclude']
+      tasks: ['create', 'read', 'update', 'delete', 'exclude'],
     },
-    'admin': {
-      'groups': {
-        'sites': ['read', 'update'],
-        'schools': ['read', 'update', 'delete'],
-        'classes': ['read', 'update', 'delete'],
-        'cohorts': ['read', 'update', 'delete']
+    admin: {
+      groups: {
+        sites: ['read', 'update'],
+        schools: ['read', 'update', 'delete'],
+        classes: ['read', 'update', 'delete'],
+        cohorts: ['read', 'update', 'delete'],
       },
-      'assignments': ['create', 'read', 'update', 'delete'],
-      'users': ['create', 'read', 'update'],
-      'admins': {
-        'site_admin': ['read'],
-        'admin': ['read'],
-        'research_assistant': ['create', 'read'],
-        'super_admin': []
+      assignments: ['create', 'read', 'update', 'delete'],
+      users: ['create', 'read', 'update'],
+      admins: {
+        site_admin: ['read'],
+        admin: ['read'],
+        research_assistant: ['create', 'read'],
+        super_admin: [],
       },
-      'tasks': ['read']
+      tasks: ['read'],
     },
-    'research_assistant': {
-      'groups': {
-        'sites': ['read'],
-        'schools': ['read'],
-        'classes': ['read'],
-        'cohorts': ['read']
+    research_assistant: {
+      groups: {
+        sites: ['read'],
+        schools: ['read'],
+        classes: ['read'],
+        cohorts: ['read'],
       },
-      'assignments': ['read'],
-      'users': ['create', 'read'],
-      'admins': {
-        'site_admin': ['read'],
-        'admin': ['read'],
-        'research_assistant': ['read'],
-        'super_admin': []
+      assignments: ['read'],
+      users: ['create', 'read'],
+      admins: {
+        site_admin: ['read'],
+        admin: ['read'],
+        research_assistant: ['read'],
+        super_admin: [],
       },
-      'tasks': ['read']
+      tasks: ['read'],
     },
-    'participant': {
-      'groups': {
-        'sites': [],
-        'schools': [],
-        'classes': [],
-        'cohorts': []
+    participant: {
+      groups: {
+        sites: [],
+        schools: [],
+        classes: [],
+        cohorts: [],
       },
-      'assignments': [],
-      'users': [],
-      'admins': {
-        'site_admin': [],
-        'admin': [],
-        'research_assistant': [],
-        'super_admin': []
+      assignments: [],
+      users: [],
+      admins: {
+        site_admin: [],
+        admin: [],
+        research_assistant: [],
+        super_admin: [],
       },
-      'tasks': []
-    }
+      tasks: [],
+    },
   };
 
   const validPermissionDocument: PermissionDocument = {
     permissions: validPermissionMatrix,
     version: '1.1.0',
-    updatedAt: '2025-01-01T00:00:00Z'
+    updatedAt: '2025-01-01T00:00:00Z',
   };
 
   const superAdminUser: User = {
     uid: 'super-admin-123',
     email: 'super@example.com',
-    roles: [
-      { siteId: 'site1', role: 'super_admin' }
-    ]
+    roles: [{ siteId: 'site1', role: 'super_admin' }],
   };
 
   const siteAdminUser: User = {
@@ -122,32 +120,26 @@ describe('PermissionService', () => {
     email: 'siteadmin@example.com',
     roles: [
       { siteId: 'site1', role: 'site_admin' },
-      { siteId: 'site2', role: 'admin' }
-    ]
+      { siteId: 'site2', role: 'admin' },
+    ],
   };
 
   const adminUser: User = {
     uid: 'admin-123',
     email: 'admin@example.com',
-    roles: [
-      { siteId: 'site1', role: 'admin' }
-    ]
+    roles: [{ siteId: 'site1', role: 'admin' }],
   };
 
   const researchAssistantUser: User = {
     uid: 'research-123',
     email: 'research@example.com',
-    roles: [
-      { siteId: 'site1', role: 'research_assistant' }
-    ]
+    roles: [{ siteId: 'site1', role: 'research_assistant' }],
   };
 
   const participantUser: User = {
     uid: 'participant-123',
     email: 'participant@example.com',
-    roles: [
-      { siteId: 'site1', role: 'participant' }
-    ]
+    roles: [{ siteId: 'site1', role: 'participant' }],
   };
 
   const multiSiteUser: User = {
@@ -156,8 +148,8 @@ describe('PermissionService', () => {
     roles: [
       { siteId: 'site1', role: 'admin' },
       { siteId: 'site2', role: 'research_assistant' },
-      { siteId: 'site3', role: 'site_admin' }
-    ]
+      { siteId: 'site3', role: 'site_admin' },
+    ],
   };
 
   beforeEach(() => {
@@ -185,17 +177,30 @@ describe('PermissionService', () => {
   describe('logging configuration', () => {
     it('defaults to off when not provided', () => {
       const defaultService = new PermissionService();
-      expect((defaultService as any).shouldComputeDecisionDetails()).toBe(false);
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
+      expect((defaultService as any).shouldComputeDecisionDetails()).toBe(
+        false,
+      );
     });
 
     it('remains off when explicitly set to off', () => {
-      const serviceWithExplicitOff = new PermissionService(undefined, { mode: 'off' });
-      expect((serviceWithExplicitOff as any).shouldComputeDecisionDetails()).toBe(false);
+      const serviceWithExplicitOff = new PermissionService(undefined, {
+        mode: 'off',
+      });
+      expect(
+        // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
+        (serviceWithExplicitOff as any).shouldComputeDecisionDetails(),
+      ).toBe(false);
     });
 
     it('enables reason evaluation when mode is debug', () => {
-      const serviceWithDebug = new PermissionService(undefined, { mode: 'debug' });
-      expect((serviceWithDebug as any).shouldComputeDecisionDetails()).toBe(true);
+      const serviceWithDebug = new PermissionService(undefined, {
+        mode: 'debug',
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
+      expect((serviceWithDebug as any).shouldComputeDecisionDetails()).toBe(
+        true,
+      );
     });
   });
 
@@ -206,14 +211,23 @@ describe('PermissionService', () => {
         isEnabled: () => true,
         emit: (event) => {
           events.push(event);
-        }
+        },
       };
 
       const sinkCache = new CacheService(1000);
-      const serviceWithSink = new PermissionService(sinkCache, { mode: 'debug' }, sink);
+      const serviceWithSink = new PermissionService(
+        sinkCache,
+        { mode: 'debug' },
+        sink,
+      );
       serviceWithSink.loadPermissions(validPermissionDocument);
 
-      const allowed = serviceWithSink.canPerformSiteAction(adminUser, 'site1', 'users', 'read');
+      const allowed = serviceWithSink.canPerformSiteAction(
+        adminUser,
+        'site1',
+        'users',
+        'read',
+      );
       expect(allowed).toBe(true);
       expect(events).toHaveLength(1);
 
@@ -224,7 +238,9 @@ describe('PermissionService', () => {
       expect(event.siteId).toBe('site1');
       expect(event.resource).toBe('users');
       expect(event.action).toBe('read');
-      expect(event.environment === 'backend' || event.environment === 'frontend').toBe(true);
+      expect(
+        event.environment === 'backend' || event.environment === 'frontend',
+      ).toBe(true);
 
       sinkCache.destroy();
     });
@@ -235,13 +251,22 @@ describe('PermissionService', () => {
         isEnabled: () => false,
         emit: (event) => {
           events.push(event);
-        }
+        },
       };
 
-      const serviceWithSink = new PermissionService(undefined, { mode: 'debug' }, sink);
+      const serviceWithSink = new PermissionService(
+        undefined,
+        { mode: 'debug' },
+        sink,
+      );
       serviceWithSink.loadPermissions(validPermissionDocument);
 
-      const allowed = serviceWithSink.canPerformSiteAction(adminUser, 'site1', 'users', 'read');
+      const allowed = serviceWithSink.canPerformSiteAction(
+        adminUser,
+        'site1',
+        'users',
+        'read',
+      );
       expect(allowed).toBe(true);
       expect(events).toHaveLength(0);
     });
@@ -251,20 +276,31 @@ describe('PermissionService', () => {
         isEnabled: () => true,
         emit: () => {
           throw new Error('sink failure');
-        }
+        },
       };
 
-      const serviceWithFaultySink = new PermissionService(undefined, { mode: 'debug' }, sink);
+      const serviceWithFaultySink = new PermissionService(
+        undefined,
+        { mode: 'debug' },
+        sink,
+      );
       serviceWithFaultySink.loadPermissions(validPermissionDocument);
 
-      expect(() => serviceWithFaultySink.canPerformSiteAction(adminUser, 'site1', 'users', 'read')).not.toThrow();
+      expect(() =>
+        serviceWithFaultySink.canPerformSiteAction(
+          adminUser,
+          'site1',
+          'users',
+          'read',
+        ),
+      ).not.toThrow();
     });
   });
 
   describe('permission loading', () => {
     it('should load valid permission document successfully', () => {
       const result = service.loadPermissions(validPermissionDocument);
-      
+
       expect(result.success).toBe(true);
       expect(result.errors).toHaveLength(0);
       expect(service.isPermissionsLoaded()).toBe(true);
@@ -274,11 +310,11 @@ describe('PermissionService', () => {
     it('should reject invalid permission document', () => {
       const invalidDoc = {
         permissions: 'invalid',
-        version: '1.1.0'
-      } as any;
-      
+        version: '1.1.0',
+      } as unknown as PermissionDocument;
+
       const result = service.loadPermissions(invalidDoc);
-      
+
       expect(result.success).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
       expect(service.isPermissionsLoaded()).toBe(false);
@@ -286,11 +322,11 @@ describe('PermissionService', () => {
 
     it('should clear cache when loading new permissions', () => {
       service.loadPermissions(validPermissionDocument);
-      
+
       // Add something to cache
       cache.set('test-key', 'test-value');
       expect(cache.size()).toBe(1);
-      
+
       // Load permissions again
       service.loadPermissions(validPermissionDocument);
       expect(cache.size()).toBe(0);
@@ -298,13 +334,16 @@ describe('PermissionService', () => {
 
     it('should return permission matrix copy', () => {
       service.loadPermissions(validPermissionDocument);
-      
+
       const matrix = service.getPermissionMatrix();
       expect(matrix).toEqual(validPermissionMatrix);
-      
+
       // Modifying returned matrix shouldn't affect internal state
-      matrix['admin']['groups'].sites = [];
-      expect(service.getPermissionMatrix()['admin']['groups'].sites).toEqual(['read', 'update']);
+      matrix.admin.groups.sites = [];
+      expect(service.getPermissionMatrix().admin.groups.sites).toEqual([
+        'read',
+        'update',
+      ]);
     });
   });
 
@@ -315,7 +354,9 @@ describe('PermissionService', () => {
 
     it('should correctly identify role hierarchy', () => {
       expect(service.hasMinimumRole('participant', 'participant')).toBe(true);
-      expect(service.hasMinimumRole('research_assistant', 'participant')).toBe(true);
+      expect(service.hasMinimumRole('research_assistant', 'participant')).toBe(
+        true,
+      );
       expect(service.hasMinimumRole('admin', 'research_assistant')).toBe(true);
       expect(service.hasMinimumRole('site_admin', 'admin')).toBe(true);
       expect(service.hasMinimumRole('super_admin', 'site_admin')).toBe(true);
@@ -329,8 +370,12 @@ describe('PermissionService', () => {
     });
 
     it('should handle invalid roles', () => {
-      expect(service.hasMinimumRole('invalid_role' as Role, 'admin')).toBe(false);
-      expect(service.hasMinimumRole('admin', 'invalid_role' as Role)).toBe(false);
+      expect(service.hasMinimumRole('invalid_role' as Role, 'admin')).toBe(
+        false,
+      );
+      expect(service.hasMinimumRole('admin', 'invalid_role' as Role)).toBe(
+        false,
+      );
     });
   });
 
@@ -345,7 +390,9 @@ describe('PermissionService', () => {
     });
 
     it('should return correct site-specific role', () => {
-      expect(service.getUserSiteRole(siteAdminUser, 'site1')).toBe('site_admin');
+      expect(service.getUserSiteRole(siteAdminUser, 'site1')).toBe(
+        'site_admin',
+      );
       expect(service.getUserSiteRole(siteAdminUser, 'site2')).toBe('admin');
     });
 
@@ -356,8 +403,12 @@ describe('PermissionService', () => {
 
     it('should handle multi-site users correctly', () => {
       expect(service.getUserSiteRole(multiSiteUser, 'site1')).toBe('admin');
-      expect(service.getUserSiteRole(multiSiteUser, 'site2')).toBe('research_assistant');
-      expect(service.getUserSiteRole(multiSiteUser, 'site3')).toBe('site_admin');
+      expect(service.getUserSiteRole(multiSiteUser, 'site2')).toBe(
+        'research_assistant',
+      );
+      expect(service.getUserSiteRole(multiSiteUser, 'site3')).toBe(
+        'site_admin',
+      );
       expect(service.getUserSiteRole(multiSiteUser, 'site4')).toBeNull();
     });
   });
@@ -368,49 +419,105 @@ describe('PermissionService', () => {
     });
 
     it('should allow admin to update groups/schools', () => {
-      const result = service.canPerformSiteAction(adminUser, 'site1', 'groups', 'update', 'schools');
+      const result = service.canPerformSiteAction(
+        adminUser,
+        'site1',
+        'groups',
+        'update',
+        'schools',
+      );
       expect(result).toBe(true);
     });
 
     it('should deny admin from creating groups/sites', () => {
-      const result = service.canPerformSiteAction(adminUser, 'site1', 'groups', 'create', 'sites');
+      const result = service.canPerformSiteAction(
+        adminUser,
+        'site1',
+        'groups',
+        'create',
+        'sites',
+      );
       expect(result).toBe(false);
     });
-    
+
     it('should deny groups permission check without sub-resource', () => {
-      const result = service.canPerformSiteAction(adminUser, 'site1', 'groups', 'read');
+      const result = service.canPerformSiteAction(
+        adminUser,
+        'site1',
+        'groups',
+        'read',
+      );
       expect(result).toBe(false);
     });
 
     it('should allow research assistant to read users', () => {
-      const result = service.canPerformSiteAction(researchAssistantUser, 'site1', 'users', 'read');
+      const result = service.canPerformSiteAction(
+        researchAssistantUser,
+        'site1',
+        'users',
+        'read',
+      );
       expect(result).toBe(true);
     });
 
     it('should allow research assistant to create users', () => {
-      const result = service.canPerformSiteAction(researchAssistantUser, 'site1', 'users', 'create');
+      const result = service.canPerformSiteAction(
+        researchAssistantUser,
+        'site1',
+        'users',
+        'create',
+      );
       expect(result).toBe(true);
     });
 
     it('should deny research assistant from updating users', () => {
-      const result = service.canPerformSiteAction(researchAssistantUser, 'site1', 'users', 'update');
+      const result = service.canPerformSiteAction(
+        researchAssistantUser,
+        'site1',
+        'users',
+        'update',
+      );
       expect(result).toBe(false);
     });
 
     it('should deny participant all actions', () => {
-      expect(service.canPerformSiteAction(participantUser, 'site1', 'groups', 'read', 'sites')).toBe(false);
-      expect(service.canPerformSiteAction(participantUser, 'site1', 'users', 'read')).toBe(false);
-      expect(service.canPerformSiteAction(participantUser, 'site1', 'tasks', 'read')).toBe(false);
+      expect(
+        service.canPerformSiteAction(
+          participantUser,
+          'site1',
+          'groups',
+          'read',
+          'sites',
+        ),
+      ).toBe(false);
+      expect(
+        service.canPerformSiteAction(participantUser, 'site1', 'users', 'read'),
+      ).toBe(false);
+      expect(
+        service.canPerformSiteAction(participantUser, 'site1', 'tasks', 'read'),
+      ).toBe(false);
     });
 
     it('should deny actions for users without site role', () => {
-      const result = service.canPerformSiteAction(adminUser, 'site-without-role', 'groups', 'read', 'schools');
+      const result = service.canPerformSiteAction(
+        adminUser,
+        'site-without-role',
+        'groups',
+        'read',
+        'schools',
+      );
       expect(result).toBe(false);
     });
 
     it('should return false when permissions not loaded', () => {
       const unloadedService = new PermissionService();
-      const result = unloadedService.canPerformSiteAction(adminUser, 'site1', 'groups', 'read', 'schools');
+      const result = unloadedService.canPerformSiteAction(
+        adminUser,
+        'site1',
+        'groups',
+        'read',
+        'schools',
+      );
       expect(result).toBe(false);
     });
   });
@@ -421,28 +528,98 @@ describe('PermissionService', () => {
     });
 
     it('should allow super admin global actions', () => {
-      expect(service.canPerformGlobalAction(superAdminUser, 'groups', 'create', 'sites')).toBe(true);
-      expect(service.canPerformGlobalAction(superAdminUser, 'users', 'delete')).toBe(true);
-      expect(service.canPerformGlobalAction(superAdminUser, 'admins', 'delete', 'admin')).toBe(true);
-      expect(service.canPerformGlobalAction(superAdminUser, 'admins', 'create', 'super_admin')).toBe(true);
-      expect(service.canPerformGlobalAction(superAdminUser, 'admins', 'read', 'super_admin')).toBe(true);
-      expect(service.canPerformGlobalAction(superAdminUser, 'admins', 'update', 'super_admin')).toBe(true);
-      expect(service.canPerformGlobalAction(superAdminUser, 'admins', 'delete', 'super_admin')).toBe(true);
+      expect(
+        service.canPerformGlobalAction(
+          superAdminUser,
+          'groups',
+          'create',
+          'sites',
+        ),
+      ).toBe(true);
+      expect(
+        service.canPerformGlobalAction(superAdminUser, 'users', 'delete'),
+      ).toBe(true);
+      expect(
+        service.canPerformGlobalAction(
+          superAdminUser,
+          'admins',
+          'delete',
+          'admin',
+        ),
+      ).toBe(true);
+      expect(
+        service.canPerformGlobalAction(
+          superAdminUser,
+          'admins',
+          'create',
+          'super_admin',
+        ),
+      ).toBe(true);
+      expect(
+        service.canPerformGlobalAction(
+          superAdminUser,
+          'admins',
+          'read',
+          'super_admin',
+        ),
+      ).toBe(true);
+      expect(
+        service.canPerformGlobalAction(
+          superAdminUser,
+          'admins',
+          'update',
+          'super_admin',
+        ),
+      ).toBe(true);
+      expect(
+        service.canPerformGlobalAction(
+          superAdminUser,
+          'admins',
+          'delete',
+          'super_admin',
+        ),
+      ).toBe(true);
     });
 
     it('should deny global actions for non-super admin users', () => {
-      expect(service.canPerformGlobalAction(siteAdminUser, 'groups', 'create', 'sites')).toBe(false);
-      expect(service.canPerformGlobalAction(adminUser, 'users', 'read')).toBe(false);
-      expect(service.canPerformGlobalAction(participantUser, 'groups', 'read', 'schools')).toBe(false);
+      expect(
+        service.canPerformGlobalAction(
+          siteAdminUser,
+          'groups',
+          'create',
+          'sites',
+        ),
+      ).toBe(false);
+      expect(service.canPerformGlobalAction(adminUser, 'users', 'read')).toBe(
+        false,
+      );
+      expect(
+        service.canPerformGlobalAction(
+          participantUser,
+          'groups',
+          'read',
+          'schools',
+        ),
+      ).toBe(false);
     });
-    
+
     it('should deny global actions without sub-resource for nested resources', () => {
-      expect(service.canPerformGlobalAction(superAdminUser, 'groups', 'create')).toBe(false);
-      expect(service.canPerformGlobalAction(superAdminUser, 'admins', 'read')).toBe(false);
+      expect(
+        service.canPerformGlobalAction(superAdminUser, 'groups', 'create'),
+      ).toBe(false);
+      expect(
+        service.canPerformGlobalAction(superAdminUser, 'admins', 'read'),
+      ).toBe(false);
     });
 
     it('should route super admin site actions to global actions', () => {
-      const result = service.canPerformSiteAction(superAdminUser, 'any-site', 'groups', 'delete', 'schools');
+      const result = service.canPerformSiteAction(
+        superAdminUser,
+        'any-site',
+        'groups',
+        'delete',
+        'schools',
+      );
       expect(result).toBe(true);
     });
   });
@@ -470,7 +647,10 @@ describe('PermissionService', () => {
     });
 
     it('should handle invalid minimum role', () => {
-      const sites = service.getSitesWithMinRole(adminUser, 'invalid_role' as Role);
+      const sites = service.getSitesWithMinRole(
+        adminUser,
+        'invalid_role' as Role,
+      );
       expect(sites).toEqual([]);
     });
   });
@@ -481,7 +661,11 @@ describe('PermissionService', () => {
     });
 
     it('should return flat resources admin can create', () => {
-      const resources = service.getAccessibleResources(adminUser, 'site1', 'create');
+      const resources = service.getAccessibleResources(
+        adminUser,
+        'site1',
+        'create',
+      );
       expect(resources).toContain('assignments');
       expect(resources).toContain('users');
       expect(resources).not.toContain('tasks');
@@ -489,24 +673,36 @@ describe('PermissionService', () => {
     });
 
     it('should return flat resources research assistant can read', () => {
-      const resources = service.getAccessibleResources(researchAssistantUser, 'site1', 'read');
+      const resources = service.getAccessibleResources(
+        researchAssistantUser,
+        'site1',
+        'read',
+      );
       expect(resources).toContain('assignments');
       expect(resources).toContain('users');
       expect(resources).toContain('tasks');
       expect(resources).toHaveLength(3);
     });
-    
+
     it('should return group sub-resources admin can access', () => {
-      const subResources = service.getAccessibleGroupSubResources(adminUser, 'site1', 'read');
+      const subResources = service.getAccessibleGroupSubResources(
+        adminUser,
+        'site1',
+        'read',
+      );
       expect(subResources).toContain('sites');
       expect(subResources).toContain('schools');
       expect(subResources).toContain('classes');
       expect(subResources).toContain('cohorts');
       expect(subResources).toHaveLength(4);
     });
-    
+
     it('should return admin sub-resources admin can access', () => {
-      const subResources = service.getAccessibleAdminSubResources(adminUser, 'site1', 'read');
+      const subResources = service.getAccessibleAdminSubResources(
+        adminUser,
+        'site1',
+        'read',
+      );
       expect(subResources).toContain('site_admin');
       expect(subResources).toContain('admin');
       expect(subResources).toContain('research_assistant');
@@ -514,19 +710,35 @@ describe('PermissionService', () => {
     });
 
     it('should return empty array for participant', () => {
-      const resources = service.getAccessibleResources(participantUser, 'site1', 'read');
+      const resources = service.getAccessibleResources(
+        participantUser,
+        'site1',
+        'read',
+      );
       expect(resources).toEqual([]);
-      
-      const groupSubResources = service.getAccessibleGroupSubResources(participantUser, 'site1', 'read');
+
+      const groupSubResources = service.getAccessibleGroupSubResources(
+        participantUser,
+        'site1',
+        'read',
+      );
       expect(groupSubResources).toEqual([]);
-      
-      const adminSubResources = service.getAccessibleAdminSubResources(participantUser, 'site1', 'read');
+
+      const adminSubResources = service.getAccessibleAdminSubResources(
+        participantUser,
+        'site1',
+        'read',
+      );
       expect(adminSubResources).toEqual([]);
     });
 
     it('should return empty array when permissions not loaded', () => {
       const unloadedService = new PermissionService();
-      const resources = unloadedService.getAccessibleResources(adminUser, 'site1', 'read');
+      const resources = unloadedService.getAccessibleResources(
+        adminUser,
+        'site1',
+        'read',
+      );
       expect(resources).toEqual([]);
     });
   });
@@ -541,25 +753,49 @@ describe('PermissionService', () => {
         { resource: 'groups', action: 'read', subResource: 'schools' },
         { resource: 'groups', action: 'delete', subResource: 'schools' },
         { resource: 'users', action: 'read' },
-        { resource: 'admins', action: 'read', subResource: 'admin' }
+        { resource: 'admins', action: 'read', subResource: 'admin' },
       ];
 
       const results = service.bulkPermissionCheck(adminUser, 'site1', checks);
 
       expect(results).toHaveLength(4);
-      expect(results[0]).toEqual({ resource: 'groups', action: 'read', subResource: 'schools', allowed: true });
-      expect(results[1]).toEqual({ resource: 'groups', action: 'delete', subResource: 'schools', allowed: true });
-      expect(results[2]).toEqual({ resource: 'users', action: 'read', subResource: undefined, allowed: true });
-      expect(results[3]).toEqual({ resource: 'admins', action: 'read', subResource: 'admin', allowed: true });
+      expect(results[0]).toEqual({
+        resource: 'groups',
+        action: 'read',
+        subResource: 'schools',
+        allowed: true,
+      });
+      expect(results[1]).toEqual({
+        resource: 'groups',
+        action: 'delete',
+        subResource: 'schools',
+        allowed: true,
+      });
+      expect(results[2]).toEqual({
+        resource: 'users',
+        action: 'read',
+        subResource: undefined,
+        allowed: true,
+      });
+      expect(results[3]).toEqual({
+        resource: 'admins',
+        action: 'read',
+        subResource: 'admin',
+        allowed: true,
+      });
     });
 
     it('should return all false when permissions not loaded', () => {
       const unloadedService = new PermissionService();
       const checks: PermissionCheck[] = [
-        { resource: 'users', action: 'create' }
+        { resource: 'users', action: 'create' },
       ];
 
-      const results = unloadedService.bulkPermissionCheck(adminUser, 'site1', checks);
+      const results = unloadedService.bulkPermissionCheck(
+        adminUser,
+        'site1',
+        checks,
+      );
       expect(results[0].allowed).toBe(false);
     });
 
@@ -583,7 +819,7 @@ describe('PermissionService', () => {
           sites: ['read', 'update'],
           schools: ['read', 'update', 'delete'],
           classes: ['read', 'update', 'delete'],
-          cohorts: ['read', 'update', 'delete']
+          cohorts: ['read', 'update', 'delete'],
         });
       }
       if ('admins' in permissions) {
@@ -591,7 +827,7 @@ describe('PermissionService', () => {
           site_admin: ['read'],
           admin: ['read'],
           research_assistant: ['create', 'read'],
-          super_admin: []
+          super_admin: [],
         });
       }
     });
@@ -611,13 +847,21 @@ describe('PermissionService', () => {
       // Flat resource - no sub-resource needed
       expect(service.roleHasPermission('admin', 'users', 'create')).toBe(true);
       expect(service.roleHasPermission('admin', 'users', 'delete')).toBe(false);
-      
+
       // Nested resources - sub-resource required
-      expect(service.roleHasPermission('admin', 'groups', 'read', 'schools')).toBe(true);
-      expect(service.roleHasPermission('admin', 'groups', 'delete', 'schools')).toBe(true);
-      expect(service.roleHasPermission('admin', 'groups', 'create', 'schools')).toBe(false);
-      expect(service.roleHasPermission('participant', 'groups', 'read', 'schools')).toBe(false);
-      
+      expect(
+        service.roleHasPermission('admin', 'groups', 'read', 'schools'),
+      ).toBe(true);
+      expect(
+        service.roleHasPermission('admin', 'groups', 'delete', 'schools'),
+      ).toBe(true);
+      expect(
+        service.roleHasPermission('admin', 'groups', 'create', 'schools'),
+      ).toBe(false);
+      expect(
+        service.roleHasPermission('participant', 'groups', 'read', 'schools'),
+      ).toBe(false);
+
       // Missing sub-resource for nested resources should return false
       expect(service.roleHasPermission('admin', 'groups', 'read')).toBe(false);
       expect(service.roleHasPermission('admin', 'admins', 'read')).toBe(false);
@@ -631,12 +875,22 @@ describe('PermissionService', () => {
 
     it('should cache permission check results', () => {
       // First call should compute and cache
-      const result1 = service.canPerformSiteAction(adminUser, 'site1', 'users', 'create');
+      const result1 = service.canPerformSiteAction(
+        adminUser,
+        'site1',
+        'users',
+        'create',
+      );
       expect(result1).toBe(true);
       expect(cache.size()).toBe(1);
 
       // Second call should use cache
-      const result2 = service.canPerformSiteAction(adminUser, 'site1', 'users', 'create');
+      const result2 = service.canPerformSiteAction(
+        adminUser,
+        'site1',
+        'users',
+        'create',
+      );
       expect(result2).toBe(true);
       expect(cache.size()).toBe(1);
     });
@@ -645,14 +899,26 @@ describe('PermissionService', () => {
       service.canPerformGlobalAction(superAdminUser, 'users', 'create');
       expect(cache.size()).toBe(1);
     });
-    
+
     it('should cache permission checks with sub-resources', () => {
-      const result1 = service.canPerformSiteAction(adminUser, 'site1', 'groups', 'read', 'schools');
+      const result1 = service.canPerformSiteAction(
+        adminUser,
+        'site1',
+        'groups',
+        'read',
+        'schools',
+      );
       expect(result1).toBe(true);
       expect(cache.size()).toBe(1);
-      
+
       // Different sub-resource should create new cache entry
-      const result2 = service.canPerformSiteAction(adminUser, 'site1', 'groups', 'read', 'classes');
+      const result2 = service.canPerformSiteAction(
+        adminUser,
+        'site1',
+        'groups',
+        'read',
+        'classes',
+      );
       expect(result2).toBe(true);
       expect(cache.size()).toBe(2);
     });
@@ -660,22 +926,22 @@ describe('PermissionService', () => {
     it('should cache bulk permission results', () => {
       const checks: PermissionCheck[] = [
         { resource: 'users', action: 'create' },
-        { resource: 'users', action: 'read' }
+        { resource: 'users', action: 'read' },
       ];
 
       service.bulkPermissionCheck(adminUser, 'site1', checks);
       // Should cache individual permission checks (2) + bulk result (1) = 3 total
       expect(cache.size()).toBe(3);
-      
+
       // Second call should use cached bulk result
       service.bulkPermissionCheck(adminUser, 'site1', checks);
       expect(cache.size()).toBe(3); // No new entries
     });
-    
+
     it('should cache bulk permission results with sub-resources', () => {
       const checks: PermissionCheck[] = [
         { resource: 'groups', action: 'read', subResource: 'schools' },
-        { resource: 'admins', action: 'read', subResource: 'admin' }
+        { resource: 'admins', action: 'read', subResource: 'admin' },
       ];
 
       service.bulkPermissionCheck(adminUser, 'site1', checks);
@@ -704,7 +970,12 @@ describe('PermissionService', () => {
       const serviceWithoutCache = new PermissionService();
       serviceWithoutCache.loadPermissions(validPermissionDocument);
 
-      const result = serviceWithoutCache.canPerformSiteAction(adminUser, 'site1', 'users', 'create');
+      const result = serviceWithoutCache.canPerformSiteAction(
+        adminUser,
+        'site1',
+        'users',
+        'create',
+      );
       expect(result).toBe(true);
       expect(serviceWithoutCache.getCacheStats().enabled).toBe(false);
     });
@@ -719,26 +990,47 @@ describe('PermissionService', () => {
       const userWithoutRoles: User = {
         uid: 'no-roles-123',
         email: 'noroles@example.com',
-        roles: []
+        roles: [],
       };
 
       expect(service.getUserSiteRole(userWithoutRoles, 'site1')).toBeNull();
-      expect(service.canPerformSiteAction(userWithoutRoles, 'site1', 'users', 'read')).toBe(false);
+      expect(
+        service.canPerformSiteAction(
+          userWithoutRoles,
+          'site1',
+          'users',
+          'read',
+        ),
+      ).toBe(false);
     });
 
     it('should handle malformed user objects gracefully', () => {
       const malformedUser = {
         uid: 'malformed-123',
         email: 'malformed@example.com',
-        roles: null
-      } as any;
+        roles: null,
+      } as unknown as User;
 
       expect(() => service.getUserSiteRole(malformedUser, 'site1')).toThrow();
     });
 
     it('should handle undefined/null parameters', () => {
-      expect(service.canPerformSiteAction(null as any, 'site1', 'users', 'read')).toBe(false);
-      expect(service.canPerformSiteAction(adminUser, null as any, 'users', 'read')).toBe(false);
+      expect(
+        service.canPerformSiteAction(
+          null as unknown as User,
+          'site1',
+          'users',
+          'read',
+        ),
+      ).toBe(false);
+      expect(
+        service.canPerformSiteAction(
+          adminUser,
+          null as unknown as string,
+          'users',
+          'read',
+        ),
+      ).toBe(false);
     });
   });
 
@@ -748,14 +1040,42 @@ describe('PermissionService', () => {
     });
 
     it('should identify super admin correctly', () => {
-      expect(service.getUserSiteRole(superAdminUser, 'any-site')).toBe('super_admin');
-      expect(service.getUserSiteRole(siteAdminUser, 'site1')).toBe('site_admin');
+      expect(service.getUserSiteRole(superAdminUser, 'any-site')).toBe(
+        'super_admin',
+      );
+      expect(service.getUserSiteRole(siteAdminUser, 'site1')).toBe(
+        'site_admin',
+      );
     });
 
     it('should allow super admin access to any site', () => {
-      expect(service.canPerformSiteAction(superAdminUser, 'non-existent-site', 'groups', 'delete', 'schools')).toBe(true);
-      expect(service.canPerformSiteAction(superAdminUser, 'site1', 'admins', 'delete', 'admin')).toBe(true);
-      expect(service.canPerformSiteAction(superAdminUser, 'site1', 'admins', 'update', 'super_admin')).toBe(true);
+      expect(
+        service.canPerformSiteAction(
+          superAdminUser,
+          'non-existent-site',
+          'groups',
+          'delete',
+          'schools',
+        ),
+      ).toBe(true);
+      expect(
+        service.canPerformSiteAction(
+          superAdminUser,
+          'site1',
+          'admins',
+          'delete',
+          'admin',
+        ),
+      ).toBe(true);
+      expect(
+        service.canPerformSiteAction(
+          superAdminUser,
+          'site1',
+          'admins',
+          'update',
+          'super_admin',
+        ),
+      ).toBe(true);
     });
 
     it('should return wildcard for super admin sites', () => {
@@ -769,11 +1089,13 @@ describe('PermissionService', () => {
         email: 'multisuper@example.com',
         roles: [
           { siteId: 'site1', role: 'super_admin' },
-          { siteId: 'site2', role: 'super_admin' }
-        ]
+          { siteId: 'site2', role: 'super_admin' },
+        ],
       };
 
-      expect(service.getUserSiteRole(multiSuperAdmin, 'any-site')).toBe('super_admin');
+      expect(service.getUserSiteRole(multiSuperAdmin, 'any-site')).toBe(
+        'super_admin',
+      );
     });
   });
 
@@ -784,44 +1106,98 @@ describe('PermissionService', () => {
 
     it('should deny all permissions for participants', () => {
       const flatResources = ['assignments', 'users', 'tasks'] as const;
-      const actions = ['create', 'read', 'update', 'delete', 'exclude'] as const;
+      const actions = [
+        'create',
+        'read',
+        'update',
+        'delete',
+        'exclude',
+      ] as const;
 
       // Test flat resources
-      flatResources.forEach(resource => {
-        actions.forEach(action => {
-          expect(service.canPerformSiteAction(participantUser, 'site1', resource, action)).toBe(false);
+      flatResources.forEach((resource) => {
+        actions.forEach((action) => {
+          expect(
+            service.canPerformSiteAction(
+              participantUser,
+              'site1',
+              resource,
+              action,
+            ),
+          ).toBe(false);
         });
       });
-      
+
       // Test nested resources with sub-resources
-      const groupSubResources = ['sites', 'schools', 'classes', 'cohorts'] as const;
-      groupSubResources.forEach(subResource => {
-        actions.forEach(action => {
-          expect(service.canPerformSiteAction(participantUser, 'site1', 'groups', action, subResource)).toBe(false);
+      const groupSubResources = [
+        'sites',
+        'schools',
+        'classes',
+        'cohorts',
+      ] as const;
+      groupSubResources.forEach((subResource) => {
+        actions.forEach((action) => {
+          expect(
+            service.canPerformSiteAction(
+              participantUser,
+              'site1',
+              'groups',
+              action,
+              subResource,
+            ),
+          ).toBe(false);
         });
       });
-      
-      const adminSubResources = ['site_admin', 'admin', 'research_assistant', 'super_admin'] as const;
-      adminSubResources.forEach(subResource => {
-        actions.forEach(action => {
-          expect(service.canPerformSiteAction(participantUser, 'site1', 'admins', action, subResource)).toBe(false);
+
+      const adminSubResources = [
+        'site_admin',
+        'admin',
+        'research_assistant',
+        'super_admin',
+      ] as const;
+      adminSubResources.forEach((subResource) => {
+        actions.forEach((action) => {
+          expect(
+            service.canPerformSiteAction(
+              participantUser,
+              'site1',
+              'admins',
+              action,
+              subResource,
+            ),
+          ).toBe(false);
         });
       });
     });
 
     it('should return empty accessible resources for participants', () => {
-      const actions = ['create', 'read', 'update', 'delete', 'exclude'] as const;
-      
-      actions.forEach(action => {
-        const resources = service.getAccessibleResources(participantUser, 'site1', action);
+      const actions = [
+        'create',
+        'read',
+        'update',
+        'delete',
+        'exclude',
+      ] as const;
+
+      actions.forEach((action) => {
+        const resources = service.getAccessibleResources(
+          participantUser,
+          'site1',
+          action,
+        );
         expect(resources).toEqual([]);
       });
     });
 
     it('should return no sites for participants with minimum role requirements', () => {
-      const roles = ['research_assistant', 'admin', 'site_admin', 'super_admin'] as const;
-      
-      roles.forEach(role => {
+      const roles = [
+        'research_assistant',
+        'admin',
+        'site_admin',
+        'super_admin',
+      ] as const;
+
+      roles.forEach((role) => {
         const sites = service.getSitesWithMinRole(participantUser, role);
         expect(sites).toEqual([]);
       });
@@ -830,113 +1206,141 @@ describe('PermissionService', () => {
 
   describe('decision reasons', () => {
     it('reports NOT_LOADED when permissions are unavailable', () => {
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       const evaluation = (service as any).evaluateSiteActionDetailed(
         adminUser,
         'site1',
         'users',
         'read',
         undefined,
-        true
+        true,
       );
 
       expect(evaluation.allowed).toBe(false);
-      expect(evaluation.detail).toEqual({ decision: 'indeterminate', reason: 'NOT_LOADED' });
+      expect(evaluation.detail).toEqual({
+        decision: 'indeterminate',
+        reason: 'NOT_LOADED',
+      });
     });
 
     it('reports MISSING_PARAMS when required arguments are absent', () => {
       service.loadPermissions(validPermissionDocument);
 
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       const evaluation = (service as any).evaluateSiteActionDetailed(
         adminUser,
         null,
         'users',
         'read',
         undefined,
-        true
+        true,
       );
 
       expect(evaluation.allowed).toBe(false);
-      expect(evaluation.detail).toEqual({ decision: 'indeterminate', reason: 'MISSING_PARAMS' });
+      expect(evaluation.detail).toEqual({
+        decision: 'indeterminate',
+        reason: 'MISSING_PARAMS',
+      });
     });
 
     it('reports REQUIRES_SUBRESOURCE when nested resource is missing', () => {
       service.loadPermissions(validPermissionDocument);
 
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       const evaluation = (service as any).evaluateSiteActionDetailed(
         adminUser,
         'site1',
         'groups',
         'read',
         undefined,
-        true
+        true,
       );
 
       expect(evaluation.allowed).toBe(false);
-      expect(evaluation.detail).toEqual({ decision: 'indeterminate', reason: 'REQUIRES_SUBRESOURCE' });
+      expect(evaluation.detail).toEqual({
+        decision: 'indeterminate',
+        reason: 'REQUIRES_SUBRESOURCE',
+      });
     });
 
     it('reports INVALID_SUBRESOURCE when nested resource is invalid', () => {
       service.loadPermissions(validPermissionDocument);
 
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       const evaluation = (service as any).evaluateSiteActionDetailed(
         adminUser,
         'site1',
         'groups',
         'read',
-        'invalid_subresource' as any,
-        true
+        'invalid_subresource',
+        true,
       );
 
       expect(evaluation.allowed).toBe(false);
-      expect(evaluation.detail).toEqual({ decision: 'indeterminate', reason: 'INVALID_SUBRESOURCE' });
+      expect(evaluation.detail).toEqual({
+        decision: 'indeterminate',
+        reason: 'INVALID_SUBRESOURCE',
+      });
     });
 
     it('reports NO_ROLE when user lacks site assignment', () => {
       service.loadPermissions(validPermissionDocument);
 
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       const evaluation = (service as any).evaluateSiteActionDetailed(
         adminUser,
         'missing-site',
         'users',
         'read',
         undefined,
-        true
+        true,
       );
 
       expect(evaluation.allowed).toBe(false);
-      expect(evaluation.detail).toEqual({ decision: 'deny', reason: 'NO_ROLE' });
+      expect(evaluation.detail).toEqual({
+        decision: 'deny',
+        reason: 'NO_ROLE',
+      });
     });
 
     it('reports NOT_ALLOWED when role lacks action permission', () => {
       service.loadPermissions(validPermissionDocument);
 
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       const evaluation = (service as any).evaluateSiteActionDetailed(
         researchAssistantUser,
         'site1',
         'users',
         'update',
         undefined,
-        true
+        true,
       );
 
       expect(evaluation.allowed).toBe(false);
-      expect(evaluation.detail).toEqual({ decision: 'deny', reason: 'NOT_ALLOWED' });
+      expect(evaluation.detail).toEqual({
+        decision: 'deny',
+        reason: 'NOT_ALLOWED',
+      });
     });
 
     it('reports ALLOWED when permission check succeeds', () => {
       service.loadPermissions(validPermissionDocument);
 
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       const evaluation = (service as any).evaluateSiteActionDetailed(
         adminUser,
         'site1',
         'users',
         'read',
         undefined,
-        true
+        true,
       );
 
       expect(evaluation.allowed).toBe(true);
-      expect(evaluation.detail).toEqual({ decision: 'allow', reason: 'ALLOWED' });
+      expect(evaluation.detail).toEqual({
+        decision: 'allow',
+        reason: 'ALLOWED',
+      });
     });
   });
 });

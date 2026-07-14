@@ -1,56 +1,49 @@
-// all types
+export { CacheService } from './services/cacheService.js';
+export { PermissionService } from './services/permissionService.js';
+export {
+  ACTIONS,
+  ADMIN_SUB_RESOURCES,
+  ALL_ACTIONS,
+  ALL_ADMIN_SUB_RESOURCES,
+  ALL_GROUP_SUB_RESOURCES,
+  ALL_RESOURCES,
+  ALL_ROLES,
+  DEFAULT_PERMISSION_MATRIX,
+  FLAT_RESOURCES,
+  GROUP_SUB_RESOURCES,
+  NESTED_RESOURCES,
+  RESOURCES,
+  ROLES,
+} from './types/constants.js';
 export type {
-  Role,
   Action,
-  Resource,
-  GroupSubResource,
   AdminSubResource,
-  SubResource,
-  UserRole,
-  User,
-  PermissionMatrix,
-  NestedPermissions,
-  FlatPermissions,
+  BulkPermissionResult,
   CacheEntry,
   CacheOptions,
-  PermissionCheck,
-  BulkPermissionResult,
-  PermissionServiceConfig,
-  PermissionDecision,
-  PermissionReason,
-  PermissionDecisionDetail,
+  FlatPermissions,
+  GroupSubResource,
   LoggingMode,
   LoggingModeConfig,
+  NestedPermissions,
   PermEvent,
   PermEventSink,
+  PermissionCheck,
+  PermissionDecision,
+  PermissionDecisionDetail,
+  PermissionDocument,
+  PermissionMatrix,
+  PermissionReason,
+  PermissionServiceConfig,
+  Resource,
+  Role,
+  SubResource,
+  User,
+  UserRole,
   VersionInfo,
-  PermissionDocument
 } from './types/permissions.js';
-
-// constants
-export {
-  ROLES,
-  RESOURCES,
-  ACTIONS,
-  GROUP_SUB_RESOURCES,
-  ADMIN_SUB_RESOURCES,
-  FLAT_RESOURCES,
-  NESTED_RESOURCES,
-  ALL_ROLES,
-  ALL_RESOURCES,
-  ALL_ACTIONS,
-  ALL_GROUP_SUB_RESOURCES,
-  ALL_ADMIN_SUB_RESOURCES,
-  DEFAULT_PERMISSION_MATRIX
-} from './types/constants.js';
-
-// core services
-export { PermissionService } from './services/permissionService.js';
-export { CacheService } from './services/cacheService.js';
-
-// utilities
-export { VersionHandler } from './utils/versionHandler.js';
-export type { 
-  VersionCompatibility, 
-  MigrationResult 
+export type {
+  MigrationResult,
+  VersionCompatibility,
 } from './utils/versionHandler.js';
+export { VersionHandler } from './utils/versionHandler.js';

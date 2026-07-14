@@ -1,12 +1,19 @@
-import type { PermissionMatrix, Role, Resource, Action, GroupSubResource, AdminSubResource } from '../types/permissions.js';
-import { 
-  ALL_ROLES, 
-  ALL_RESOURCES, 
-  ALL_ACTIONS, 
-  ALL_GROUP_SUB_RESOURCES, 
+import {
+  ALL_ACTIONS,
   ALL_ADMIN_SUB_RESOURCES,
-  RESOURCES
+  ALL_GROUP_SUB_RESOURCES,
+  ALL_RESOURCES,
+  ALL_ROLES,
+  RESOURCES,
 } from '../types/constants.js';
+import type {
+  Action,
+  AdminSubResource,
+  GroupSubResource,
+  PermissionMatrix,
+  Resource,
+  Role,
+} from '../types/permissions.js';
 
 export interface VersionCompatibility {
   isCompatible: boolean;
@@ -28,18 +35,22 @@ export class VersionHandler {
   private static readonly COMPATIBLE_VERSIONS = ['1.1.0'];
 
   static checkCompatibility(version: string): VersionCompatibility {
-    const isCompatible = this.COMPATIBLE_VERSIONS.includes(version);
-    const requiresMigration = !this.SUPPORTED_VERSIONS.includes(version) && isCompatible;
+    const isCompatible = VersionHandler.COMPATIBLE_VERSIONS.includes(version);
+    const requiresMigration =
+      !VersionHandler.SUPPORTED_VERSIONS.includes(version) && isCompatible;
 
     return {
       isCompatible,
       requiresMigration,
-      supportedVersions: [...this.SUPPORTED_VERSIONS],
-      currentVersion: this.CURRENT_VERSION
+      supportedVersions: [...VersionHandler.SUPPORTED_VERSIONS],
+      currentVersion: VersionHandler.CURRENT_VERSION,
     };
   }
 
-  static validatePermissionDocument(document: any): { isValid: boolean; errors: string[] } {
+  static validatePermissionDocument(document: any): {
+    isValid: boolean;
+    errors: string[];
+  } {
     const errors: string[] = [];
 
     if (!document || typeof document !== 'object') {
@@ -66,13 +77,18 @@ export class VersionHandler {
     return { isValid: errors.length === 0, errors };
   }
 
-  static validatePermissionMatrix(matrix: PermissionMatrix): { isValid: boolean; errors: string[] } {
+  static validatePermissionMatrix(matrix: PermissionMatrix): {
+    isValid: boolean;
+    errors: string[];
+  } {
     const errors: string[] = [];
     const validRoles: Role[] = ALL_ROLES as unknown as Role[];
     const validResources: Resource[] = ALL_RESOURCES as unknown as Resource[];
     const validActions: Action[] = ALL_ACTIONS as unknown as Action[];
-    const validGroupSubResources: GroupSubResource[] = ALL_GROUP_SUB_RESOURCES as unknown as GroupSubResource[];
-    const validAdminSubResources: AdminSubResource[] = ALL_ADMIN_SUB_RESOURCES as unknown as AdminSubResource[];
+    const validGroupSubResources: GroupSubResource[] =
+      ALL_GROUP_SUB_RESOURCES as unknown as GroupSubResource[];
+    const validAdminSubResources: AdminSubResource[] =
+      ALL_ADMIN_SUB_RESOURCES as unknown as AdminSubResource[];
 
     if (!matrix || typeof matrix !== 'object') {
       errors.push('Permission matrix must be an object');
@@ -98,21 +114,29 @@ export class VersionHandler {
 
         if (resource === RESOURCES.GROUPS) {
           if (typeof value !== 'object' || Array.isArray(value)) {
-            errors.push(`${role}.${resource} must be an object with sub-resources`);
+            errors.push(
+              `${role}.${resource} must be an object with sub-resources`,
+            );
             continue;
           }
 
           for (const subResource of validGroupSubResources) {
             if (!(subResource in value)) {
-              errors.push(`${role}.${resource} missing required sub-resource: ${subResource}`);
+              errors.push(
+                `${role}.${resource} missing required sub-resource: ${subResource}`,
+              );
             } else {
               const actions = (value as any)[subResource];
               if (!Array.isArray(actions)) {
-                errors.push(`${role}.${resource}.${subResource} must be an array`);
+                errors.push(
+                  `${role}.${resource}.${subResource} must be an array`,
+                );
               } else {
                 for (const action of actions) {
                   if (!validActions.includes(action as Action)) {
-                    errors.push(`Invalid action: ${action} for ${role}.${resource}.${subResource}`);
+                    errors.push(
+                      `Invalid action: ${action} for ${role}.${resource}.${subResource}`,
+                    );
                   }
                 }
               }
@@ -120,21 +144,29 @@ export class VersionHandler {
           }
         } else if (resource === RESOURCES.ADMINS) {
           if (typeof value !== 'object' || Array.isArray(value)) {
-            errors.push(`${role}.${resource} must be an object with sub-resources`);
+            errors.push(
+              `${role}.${resource} must be an object with sub-resources`,
+            );
             continue;
           }
 
           for (const subResource of validAdminSubResources) {
             if (!(subResource in value)) {
-              errors.push(`${role}.${resource} missing required sub-resource: ${subResource}`);
+              errors.push(
+                `${role}.${resource} missing required sub-resource: ${subResource}`,
+              );
             } else {
               const actions = (value as any)[subResource];
               if (!Array.isArray(actions)) {
-                errors.push(`${role}.${resource}.${subResource} must be an array`);
+                errors.push(
+                  `${role}.${resource}.${subResource} must be an array`,
+                );
               } else {
                 for (const action of actions) {
                   if (!validActions.includes(action as Action)) {
-                    errors.push(`Invalid action: ${action} for ${role}.${resource}.${subResource}`);
+                    errors.push(
+                      `Invalid action: ${action} for ${role}.${resource}.${subResource}`,
+                    );
                   }
                 }
               }
@@ -158,7 +190,10 @@ export class VersionHandler {
     return { isValid: errors.length === 0, errors };
   }
 
-  static migratePermissionMatrix(matrix: any, fromVersion: string): MigrationResult {
+  static migratePermissionMatrix(
+    matrix: any,
+    fromVersion: string,
+  ): MigrationResult {
     const warnings: string[] = [];
     const errors: string[] = [];
     let migratedMatrix: PermissionMatrix;
@@ -168,25 +203,26 @@ export class VersionHandler {
         case '1.1.0':
           migratedMatrix = matrix as PermissionMatrix;
           break;
-        
+
         default:
           errors.push(`Unsupported version for migration: ${fromVersion}`);
           return {
             success: false,
             migratedMatrix: {} as PermissionMatrix,
             warnings,
-            errors
+            errors,
           };
       }
 
-      const validation = this.validatePermissionMatrix(migratedMatrix);
+      const validation =
+        VersionHandler.validatePermissionMatrix(migratedMatrix);
       if (!validation.isValid) {
         errors.push(...validation.errors);
         return {
           success: false,
           migratedMatrix: {} as PermissionMatrix,
           warnings,
-          errors
+          errors,
         };
       }
 
@@ -194,16 +230,17 @@ export class VersionHandler {
         success: true,
         migratedMatrix,
         warnings,
-        errors
+        errors,
       };
-
     } catch (error) {
-      errors.push(`Migration failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      errors.push(
+        `Migration failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
       return {
         success: false,
         migratedMatrix: {} as PermissionMatrix,
         warnings,
-        errors
+        errors,
       };
     }
   }
@@ -218,35 +255,43 @@ export class VersionHandler {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    const documentValidation = this.validatePermissionDocument(document);
+    const documentValidation =
+      VersionHandler.validatePermissionDocument(document);
     if (!documentValidation.isValid) {
       return {
         success: false,
         errors: documentValidation.errors,
-        warnings
+        warnings,
       };
     }
 
-    const compatibility = this.checkCompatibility(document.version);
+    const compatibility = VersionHandler.checkCompatibility(document.version);
     if (!compatibility.isCompatible) {
-      errors.push(`Incompatible version: ${document.version}. Supported versions: ${compatibility.supportedVersions.join(', ')}`);
+      errors.push(
+        `Incompatible version: ${document.version}. Supported versions: ${compatibility.supportedVersions.join(', ')}`,
+      );
       return {
         success: false,
         errors,
-        warnings
+        warnings,
       };
     }
 
     if (compatibility.requiresMigration) {
-      warnings.push(`Version ${document.version} requires migration to ${this.CURRENT_VERSION}`);
-      
-      const migrationResult = this.migratePermissionMatrix(document.permissions, document.version);
+      warnings.push(
+        `Version ${document.version} requires migration to ${VersionHandler.CURRENT_VERSION}`,
+      );
+
+      const migrationResult = VersionHandler.migratePermissionMatrix(
+        document.permissions,
+        document.version,
+      );
       if (!migrationResult.success) {
         errors.push(...migrationResult.errors);
         return {
           success: false,
           errors,
-          warnings: [...warnings, ...migrationResult.warnings]
+          warnings: [...warnings, ...migrationResult.warnings],
         };
       }
 
@@ -254,19 +299,21 @@ export class VersionHandler {
       return {
         success: true,
         permissionMatrix: migrationResult.migratedMatrix,
-        version: this.CURRENT_VERSION,
+        version: VersionHandler.CURRENT_VERSION,
         errors,
-        warnings
+        warnings,
       };
     }
 
-    const matrixValidation = this.validatePermissionMatrix(document.permissions);
+    const matrixValidation = VersionHandler.validatePermissionMatrix(
+      document.permissions,
+    );
     if (!matrixValidation.isValid) {
       errors.push(...matrixValidation.errors);
       return {
         success: false,
         errors,
-        warnings
+        warnings,
       };
     }
 
@@ -275,15 +322,15 @@ export class VersionHandler {
       permissionMatrix: document.permissions,
       version: document.version,
       errors,
-      warnings
+      warnings,
     };
   }
 
   static getCurrentVersion(): string {
-    return this.CURRENT_VERSION;
+    return VersionHandler.CURRENT_VERSION;
   }
 
   static getSupportedVersions(): string[] {
-    return [...this.SUPPORTED_VERSIONS];
+    return [...VersionHandler.SUPPORTED_VERSIONS];
   }
 }
