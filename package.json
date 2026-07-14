@@ -20,6 +20,8 @@
   },
   "scripts": {
     "build": "tsc",
+    "check": "biome check .",
+    "check:fix": "biome check . --write",
     "dev": "tsc --watch",
     "test": "vitest",
     "test:run": "vitest run"
@@ -32,6 +34,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@biomejs/biome": "2.5.3",
     "@types/node": "^24.1.0",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
