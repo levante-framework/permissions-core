@@ -82,7 +82,7 @@ describe('Integration Tests', () => {
         permissions: 'invalid',
         version: '1.1.0',
         updatedAt: '2025-01-01T00:00:00Z',
-      } as any;
+      } as unknown as PermissionDocument;
 
       // Version handler should catch this
       const processResult =
@@ -640,7 +640,9 @@ describe('Integration Tests', () => {
   describe('Error Recovery and Resilience', () => {
     it('should handle service recovery after failed permission loading', () => {
       // Try to load invalid permissions
-      const invalidDoc = { invalid: 'document' } as any;
+      const invalidDoc = {
+        invalid: 'document',
+      } as unknown as PermissionDocument;
       const failResult = service.loadPermissions(invalidDoc);
 
       expect(failResult.success).toBe(false);

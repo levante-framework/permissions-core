@@ -177,6 +177,7 @@ describe('PermissionService', () => {
   describe('logging configuration', () => {
     it('defaults to off when not provided', () => {
       const defaultService = new PermissionService();
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       expect((defaultService as any).shouldComputeDecisionDetails()).toBe(
         false,
       );
@@ -187,6 +188,7 @@ describe('PermissionService', () => {
         mode: 'off',
       });
       expect(
+        // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
         (serviceWithExplicitOff as any).shouldComputeDecisionDetails(),
       ).toBe(false);
     });
@@ -195,6 +197,7 @@ describe('PermissionService', () => {
       const serviceWithDebug = new PermissionService(undefined, {
         mode: 'debug',
       });
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       expect((serviceWithDebug as any).shouldComputeDecisionDetails()).toBe(
         true,
       );
@@ -308,7 +311,7 @@ describe('PermissionService', () => {
       const invalidDoc = {
         permissions: 'invalid',
         version: '1.1.0',
-      } as any;
+      } as unknown as PermissionDocument;
 
       const result = service.loadPermissions(invalidDoc);
 
@@ -1006,17 +1009,27 @@ describe('PermissionService', () => {
         uid: 'malformed-123',
         email: 'malformed@example.com',
         roles: null,
-      } as any;
+      } as unknown as User;
 
       expect(() => service.getUserSiteRole(malformedUser, 'site1')).toThrow();
     });
 
     it('should handle undefined/null parameters', () => {
       expect(
-        service.canPerformSiteAction(null as any, 'site1', 'users', 'read'),
+        service.canPerformSiteAction(
+          null as unknown as User,
+          'site1',
+          'users',
+          'read',
+        ),
       ).toBe(false);
       expect(
-        service.canPerformSiteAction(adminUser, null as any, 'users', 'read'),
+        service.canPerformSiteAction(
+          adminUser,
+          null as unknown as string,
+          'users',
+          'read',
+        ),
       ).toBe(false);
     });
   });
@@ -1193,6 +1206,7 @@ describe('PermissionService', () => {
 
   describe('decision reasons', () => {
     it('reports NOT_LOADED when permissions are unavailable', () => {
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       const evaluation = (service as any).evaluateSiteActionDetailed(
         adminUser,
         'site1',
@@ -1212,6 +1226,7 @@ describe('PermissionService', () => {
     it('reports MISSING_PARAMS when required arguments are absent', () => {
       service.loadPermissions(validPermissionDocument);
 
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       const evaluation = (service as any).evaluateSiteActionDetailed(
         adminUser,
         null,
@@ -1231,6 +1246,7 @@ describe('PermissionService', () => {
     it('reports REQUIRES_SUBRESOURCE when nested resource is missing', () => {
       service.loadPermissions(validPermissionDocument);
 
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       const evaluation = (service as any).evaluateSiteActionDetailed(
         adminUser,
         'site1',
@@ -1250,12 +1266,13 @@ describe('PermissionService', () => {
     it('reports INVALID_SUBRESOURCE when nested resource is invalid', () => {
       service.loadPermissions(validPermissionDocument);
 
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       const evaluation = (service as any).evaluateSiteActionDetailed(
         adminUser,
         'site1',
         'groups',
         'read',
-        'invalid_subresource' as any,
+        'invalid_subresource',
         true,
       );
 
@@ -1269,6 +1286,7 @@ describe('PermissionService', () => {
     it('reports NO_ROLE when user lacks site assignment', () => {
       service.loadPermissions(validPermissionDocument);
 
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       const evaluation = (service as any).evaluateSiteActionDetailed(
         adminUser,
         'missing-site',
@@ -1288,6 +1306,7 @@ describe('PermissionService', () => {
     it('reports NOT_ALLOWED when role lacks action permission', () => {
       service.loadPermissions(validPermissionDocument);
 
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       const evaluation = (service as any).evaluateSiteActionDetailed(
         researchAssistantUser,
         'site1',
@@ -1307,6 +1326,7 @@ describe('PermissionService', () => {
     it('reports ALLOWED when permission check succeeds', () => {
       service.loadPermissions(validPermissionDocument);
 
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method in test
       const evaluation = (service as any).evaluateSiteActionDetailed(
         adminUser,
         'site1',

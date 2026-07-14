@@ -215,8 +215,12 @@ describe('VersionHandler', () => {
     });
 
     it('should reject null/undefined matrix', () => {
-      const result1 = VersionHandler.validatePermissionMatrix(null as any);
-      const result2 = VersionHandler.validatePermissionMatrix(undefined as any);
+      const result1 = VersionHandler.validatePermissionMatrix(
+        null as unknown as PermissionMatrix,
+      );
+      const result2 = VersionHandler.validatePermissionMatrix(
+        undefined as unknown as PermissionMatrix,
+      );
 
       expect(result1.isValid).toBe(false);
       expect(result1.errors).toContain('Permission matrix must be an object');
@@ -230,11 +234,9 @@ describe('VersionHandler', () => {
         invalid_role: {
           groups: ['read'],
         },
-      };
+      } as unknown as PermissionMatrix;
 
-      const result = VersionHandler.validatePermissionMatrix(
-        invalidMatrix as any,
-      );
+      const result = VersionHandler.validatePermissionMatrix(invalidMatrix);
 
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Invalid role: invalid_role');
@@ -245,11 +247,9 @@ describe('VersionHandler', () => {
         admin: {
           invalid_resource: ['read'],
         },
-      };
+      } as unknown as PermissionMatrix;
 
-      const result = VersionHandler.validatePermissionMatrix(
-        invalidMatrix as any,
-      );
+      const result = VersionHandler.validatePermissionMatrix(invalidMatrix);
 
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain(
@@ -276,11 +276,9 @@ describe('VersionHandler', () => {
           users: [],
           tasks: [],
         },
-      };
+      } as unknown as PermissionMatrix;
 
-      const result = VersionHandler.validatePermissionMatrix(
-        invalidMatrix as any,
-      );
+      const result = VersionHandler.validatePermissionMatrix(invalidMatrix);
 
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain(
@@ -291,11 +289,9 @@ describe('VersionHandler', () => {
     it('should reject non-object resources', () => {
       const invalidMatrix = {
         admin: 'not an object',
-      };
+      } as unknown as PermissionMatrix;
 
-      const result = VersionHandler.validatePermissionMatrix(
-        invalidMatrix as any,
-      );
+      const result = VersionHandler.validatePermissionMatrix(invalidMatrix);
 
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Role admin must have resources object');
@@ -315,11 +311,9 @@ describe('VersionHandler', () => {
           users: [],
           tasks: [],
         },
-      };
+      } as unknown as PermissionMatrix;
 
-      const result = VersionHandler.validatePermissionMatrix(
-        invalidMatrix as any,
-      );
+      const result = VersionHandler.validatePermissionMatrix(invalidMatrix);
 
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain(
@@ -467,11 +461,10 @@ describe('VersionHandler', () => {
     it('should reject role with empty resources', () => {
       const matrixWithEmptyRole = {
         admin: {},
-      };
+      } as unknown as PermissionMatrix;
 
-      const result = VersionHandler.validatePermissionMatrix(
-        matrixWithEmptyRole as any,
-      );
+      const result =
+        VersionHandler.validatePermissionMatrix(matrixWithEmptyRole);
 
       // Empty role is technically valid (just has no resources)
       expect(result.isValid).toBe(true);
@@ -483,10 +476,10 @@ describe('VersionHandler', () => {
         admin: {
           groups: [],
         },
-      };
+      } as unknown as PermissionMatrix;
 
       const result = VersionHandler.validatePermissionMatrix(
-        matrixWithInvalidGroups as any,
+        matrixWithInvalidGroups,
       );
 
       // groups must be an object with sub-resources, not an array
