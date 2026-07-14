@@ -336,8 +336,8 @@ describe('PermissionService', () => {
       expect(matrix).toEqual(validPermissionMatrix);
 
       // Modifying returned matrix shouldn't affect internal state
-      matrix['admin']['groups'].sites = [];
-      expect(service.getPermissionMatrix()['admin']['groups'].sites).toEqual([
+      matrix.admin.groups.sites = [];
+      expect(service.getPermissionMatrix().admin.groups.sites).toEqual([
         'read',
         'update',
       ]);

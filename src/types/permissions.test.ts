@@ -133,10 +133,10 @@ describe('Permission Types', () => {
       };
 
       expect(typeof matrix).toBe('object');
-      expect(matrix['admin']).toBeDefined();
-      expect(matrix['participant']).toBeDefined();
-      expect(Array.isArray(matrix['admin']['groups'])).toBe(true);
-      expect(Array.isArray(matrix['admin']['users'])).toBe(true);
+      expect(matrix.admin).toBeDefined();
+      expect(matrix.participant).toBeDefined();
+      expect(Array.isArray(matrix.admin.groups)).toBe(true);
+      expect(Array.isArray(matrix.admin.users)).toBe(true);
     });
   });
 
