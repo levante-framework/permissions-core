@@ -1,13 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { PermissionService } from '../services/permissionService.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CacheService } from '../services/cacheService.js';
-import { VersionHandler } from '../utils/versionHandler.js';
-import type {
-  User,
-  PermissionDocument,
-  PermissionCheck,
-} from '../types/permissions.js';
+import { PermissionService } from '../services/permissionService.js';
 import { DEFAULT_PERMISSION_MATRIX } from '../types/constants.js';
+import type {
+  PermissionCheck,
+  PermissionDocument,
+  User,
+} from '../types/permissions.js';
+import { VersionHandler } from '../utils/versionHandler.js';
 
 describe('Integration Tests', () => {
   let cache: CacheService;

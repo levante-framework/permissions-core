@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { VersionHandler } from './versionHandler.js';
+import { describe, expect, it } from 'vitest';
 import type {
-  PermissionMatrix,
   PermissionDocument,
+  PermissionMatrix,
 } from '../types/permissions.js';
+import { VersionHandler } from './versionHandler.js';
 
 describe('VersionHandler', () => {
   const validPermissionMatrix: PermissionMatrix = {

@@ -1,19 +1,19 @@
-import type {
-  PermissionMatrix,
-  Role,
-  Resource,
-  Action,
-  GroupSubResource,
-  AdminSubResource,
-} from '../types/permissions.js';
 import {
-  ALL_ROLES,
-  ALL_RESOURCES,
   ALL_ACTIONS,
-  ALL_GROUP_SUB_RESOURCES,
   ALL_ADMIN_SUB_RESOURCES,
+  ALL_GROUP_SUB_RESOURCES,
+  ALL_RESOURCES,
+  ALL_ROLES,
   RESOURCES,
 } from '../types/constants.js';
+import type {
+  Action,
+  AdminSubResource,
+  GroupSubResource,
+  PermissionMatrix,
+  Resource,
+  Role,
+} from '../types/permissions.js';
 
 export interface VersionCompatibility {
   isCompatible: boolean;

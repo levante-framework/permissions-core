@@ -1,16 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type {
-  Role,
   Action,
-  Resource,
-  UserRole,
-  User,
-  PermissionMatrix,
-  PermissionDocument,
-  PermissionCheck,
   BulkPermissionResult,
   CacheEntry,
   CacheOptions,
+  PermissionCheck,
+  PermissionDocument,
+  PermissionMatrix,
+  Resource,
+  Role,
+  User,
+  UserRole,
 } from './permissions.js';
 
 describe('Permission Types', () => {

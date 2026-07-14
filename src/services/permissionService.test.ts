@@ -1,15 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { PermissionService } from './permissionService.js';
-import { CacheService } from './cacheService.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type {
-  User,
-  PermissionDocument,
-  PermissionMatrix,
-  PermissionCheck,
-  Role,
   PermEvent,
   PermEventSink,
+  PermissionCheck,
+  PermissionDocument,
+  PermissionMatrix,
+  Role,
+  User,
 } from '../types/permissions.js';
+import { CacheService } from './cacheService.js';
+import { PermissionService } from './permissionService.js';
 
 describe('PermissionService', () => {
   let service: PermissionService;

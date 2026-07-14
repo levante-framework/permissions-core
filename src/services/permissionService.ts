@@ -1,30 +1,29 @@
+import {
+  ALL_ADMIN_SUB_RESOURCES,
+  ALL_GROUP_SUB_RESOURCES,
+  FLAT_RESOURCES,
+  RESOURCES,
+  ROLES,
+} from '../types/constants.js';
 import type {
-  User,
-  Role,
-  Resource,
   Action,
-  PermissionMatrix,
-  PermissionDocument,
-  PermissionCheck,
-  BulkPermissionResult,
-  SubResource,
-  GroupSubResource,
   AdminSubResource,
-  PermissionDecisionDetail,
+  BulkPermissionResult,
+  GroupSubResource,
   LoggingModeConfig,
   PermEvent,
   PermEventSink,
+  PermissionCheck,
+  PermissionDecisionDetail,
+  PermissionDocument,
+  PermissionMatrix,
+  Resource,
+  Role,
+  SubResource,
+  User,
 } from '../types/permissions.js';
-
-import {
-  ROLES,
-  RESOURCES,
-  ALL_GROUP_SUB_RESOURCES,
-  ALL_ADMIN_SUB_RESOURCES,
-  FLAT_RESOURCES,
-} from '../types/constants.js';
-import { CacheService } from './cacheService.js';
 import { VersionHandler } from '../utils/versionHandler.js';
+import { CacheService } from './cacheService.js';
 
 const NoopPermEventSink: PermEventSink = Object.freeze({
   isEnabled: () => false,
