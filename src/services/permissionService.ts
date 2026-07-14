@@ -130,7 +130,7 @@ export class PermissionService {
   }
 
   private isSuperAdmin(user: User): boolean {
-    if (!user || !user.roles) {
+    if (!user?.roles) {
       console.warn('isSuperAdmin check failed: user or user.roles is missing');
       return false;
     }
