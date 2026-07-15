@@ -147,7 +147,9 @@ shape before calling a permission method.
 - `isSuperAdmin` — global `super_admin`. When `true`, the user is a super admin
   across all sites; `super_admin` is therefore never encoded in `siteRoles`.
 - `siteRoles` — map of `siteId` → **role code**. A missing key (or `-1`) means the
-  user has no role at that site.
+  user has no role at that site. Cap this map at **32 entries**: Firebase limits
+  custom claims to 1000 bytes total, and 32 `siteId`/code pairs (plus
+  `claimsVersion`, `isSuperAdmin`, and overhead) is the most that reliably fits.
 
 ### Role codes
 
