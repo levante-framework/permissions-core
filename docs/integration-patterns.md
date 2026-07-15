@@ -230,9 +230,10 @@ export function usePermissions() {
     }
   }, { immediate: true });
 
-  // Permission checking functions.
-  // Nested resources (`groups`, `admins`) require a `subResource`.
-  const hasPermission = async (resource: string, action: string, subResource?: string): Promise<boolean> => {
+  // Permission checking functions. `canPerformSiteAction` is synchronous, so
+  // these stay sync too (important so the computed props below return booleans,
+  // not Promises). Nested resources (`groups`, `admins`) require a `subResource`.
+  const hasPermission = (resource: string, action: string, subResource?: string): boolean => {
     if (!isLoaded.value || !currentUser.value || !currentSite.value) {
       return false;
     }
@@ -251,7 +252,7 @@ export function usePermissions() {
     }
   };
 
-  const hasPermissions = async (checks: Array<{resource: string, action: string}>) => {
+  const hasPermissions = (checks: Array<{resource: string, action: string, subResource?: string}>) => {
     if (!isLoaded.value || !currentUser.value || !currentSite.value) {
       return checks.map(check => ({ ...check, allowed: false }));
     }
@@ -275,17 +276,11 @@ export function usePermissions() {
   };
 
   // Reactive computed properties for common permissions
-  const canCreateSchools = computed(async () => {
-    return await hasPermission('groups', 'create', 'schools');
-  });
+  const canCreateSchools = computed(() => hasPermission('groups', 'create', 'schools'));
 
-  const canManageUsers = computed(async () => {
-    return await hasPermission('users', 'update');
-  });
+  const canManageUsers = computed(() => hasPermission('users', 'update'));
 
-  const canExcludeAdmins = computed(async () => {
-    return await hasPermission('admins', 'exclude', 'admin');
-  });
+  const canExcludeAdmins = computed(() => hasPermission('admins', 'exclude', 'admin'));
 
   const isSuperAdmin = computed(() => {
     if (!currentUser.value) return false;
