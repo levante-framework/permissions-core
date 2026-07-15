@@ -724,11 +724,12 @@ async function getUserWithRoles(userId: string) {
   }
 
   const userData = userDoc.data();
+  // Shape matches the package's `User` type ({ uid, email, roles }). `userType`
+  // is a separate platform concept and is not used by permission checks.
   return {
     uid: userId,
-    email: userData?.email,
-    roles: userData?.roles || [],
-    userType: userData?.userType
+    email: userData?.email ?? '',
+    roles: userData?.roles || []
   };
 }
 ```
