@@ -18,19 +18,17 @@ This document provides detailed integration patterns for using the permissions s
 ### Basic Permission Checking
 
 ```typescript
-import { PermissionService, CacheService } from 'permissions-service';
+import { PermissionService, CacheService, DEFAULT_PERMISSION_MATRIX } from '@levante-framework/permissions-core';
 
 const cache = new CacheService();
 const permissions = new PermissionService(cache);
 
+// Use the full matrix from DEFAULT_PERMISSION_MATRIX in production. `groups` and
+// `admins` are nested by sub-resource and every sub-resource must be present.
 const permissionDoc = {
-  version: '1.0.0',
-  permissions: {
-    admin: {
-      groups: ['create', 'read', 'update'],
-      users: ['create', 'read', 'update']
-    }
-  }
+  version: '1.1.0',
+  updatedAt: '2025-07-18T10:00:00Z',
+  permissions: DEFAULT_PERMISSION_MATRIX
 };
 
 const loadResult = permissions.loadPermissions(permissionDoc);
@@ -40,14 +38,17 @@ if (!loadResult.success) {
 
 const user = {
   uid: 'user123',
+  email: 'user@example.com',
   roles: [{ siteId: 'site-001', role: 'admin' }]
 };
 
-const canEditGroups = permissions.canPerformSiteAction(
+// `groups` is a nested resource, so a sub-resource is required.
+const canEditSchools = permissions.canPerformSiteAction(
   user,
   'site-001',
   'groups',
-  'update'
+  'update',
+  'schools'
 );
 ```
 
@@ -56,6 +57,7 @@ const canEditGroups = permissions.canPerformSiteAction(
 ```typescript
 const superAdmin = {
   uid: 'super-001',
+  email: 'super@example.com',
   roles: [{ siteId: '*', role: 'super_admin' }]
 };
 
@@ -145,7 +147,7 @@ src/
 ```typescript
 // composables/usePermissions.ts
 import { ref, computed, watch, onUnmounted } from 'vue';
-import { PermissionService, CacheService } from 'permissions-service';
+import { PermissionService, CacheService } from '@levante-framework/permissions-core';
 import { useAuth } from './useAuth';
 import { useSite } from './useSite';
 import { useFirestore } from './useFirestore';
@@ -158,12 +160,12 @@ export function usePermissions() {
   const { currentUser, isAuthenticated } = useAuth();
   const { currentSite } = useSite();
   const { db } = useFirestore();
-  
+
   const isLoaded = ref(false);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   const version = ref<string>('');
-  
+
   // Initialize global instances if needed
   if (!globalCache) {
     globalCache = new CacheService(300000); // 5 minutes
@@ -171,37 +173,37 @@ export function usePermissions() {
   if (!globalPermissions) {
     globalPermissions = new PermissionService(globalCache);
   }
-  
+
   const permissions = globalPermissions;
   const cache = globalCache;
-  
+
   // Load permissions from Firestore
   const loadPermissions = async (force = false) => {
     if (isLoaded.value && !force) return;
-    
+
     isLoading.value = true;
     error.value = null;
-    
+
     try {
       const permissionDoc = await db.doc('system/permissions').get();
-      
+
       if (!permissionDoc.exists) {
         throw new Error('Permission matrix not found in Firestore');
       }
-      
+
       const result = permissions.loadPermissions(permissionDoc.data());
-      
+
       if (!result.success) {
         throw new Error(`Permission validation failed: ${result.errors.join(', ')}`);
       }
-      
+
       if (result.warnings.length > 0) {
         console.warn('Permission warnings:', result.warnings);
       }
-      
+
       version.value = permissions.getVersion();
       isLoaded.value = true;
-      
+
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load permissions';
       console.error('Permission loading failed:', err);
@@ -209,7 +211,7 @@ export function usePermissions() {
       isLoading.value = false;
     }
   };
-  
+
   // Clear cache when user or site changes
   watch([currentUser, currentSite], ([newUser, newSite], [oldUser, oldSite]) => {
     if (oldUser && newUser?.uid !== oldUser.uid) {
@@ -220,38 +222,40 @@ export function usePermissions() {
       permissions.clearUserCache(newUser.uid);
     }
   });
-  
+
   // Auto-load permissions when authenticated
   watch(isAuthenticated, (authenticated) => {
     if (authenticated) {
       loadPermissions();
     }
   }, { immediate: true });
-  
-  // Permission checking functions
-  const hasPermission = async (resource: string, action: string): Promise<boolean> => {
+
+  // Permission checking functions.
+  // Nested resources (`groups`, `admins`) require a `subResource`.
+  const hasPermission = async (resource: string, action: string, subResource?: string): Promise<boolean> => {
     if (!isLoaded.value || !currentUser.value || !currentSite.value) {
       return false;
     }
-    
+
     try {
       return permissions.canPerformSiteAction(
         currentUser.value,
         currentSite.value.id,
         resource,
-        action
+        action,
+        subResource
       );
     } catch (err) {
       console.error('Permission check failed:', err);
       return false;
     }
   };
-  
+
   const hasPermissions = async (checks: Array<{resource: string, action: string}>) => {
     if (!isLoaded.value || !currentUser.value || !currentSite.value) {
       return checks.map(check => ({ ...check, allowed: false }));
     }
-    
+
     try {
       return permissions.bulkPermissionCheck(
         currentUser.value,
@@ -263,33 +267,33 @@ export function usePermissions() {
       return checks.map(check => ({ ...check, allowed: false }));
     }
   };
-  
+
   const getUserRole = (): string | null => {
     if (!currentUser.value || !currentSite.value) return null;
-    
+
     return permissions.getUserSiteRole(currentUser.value, currentSite.value.id);
   };
-  
+
   // Reactive computed properties for common permissions
-  const canCreateGroups = computed(async () => {
-    return await hasPermission('groups', 'create');
+  const canCreateSchools = computed(async () => {
+    return await hasPermission('groups', 'create', 'schools');
   });
-  
+
   const canManageUsers = computed(async () => {
     return await hasPermission('users', 'update');
   });
-  
+
   const canExcludeAdmins = computed(async () => {
-    return await hasPermission('admins', 'exclude');
+    return await hasPermission('admins', 'exclude', 'admin');
   });
-  
+
   const isSuperAdmin = computed(() => {
     if (!currentUser.value) return false;
     return currentUser.value.roles?.some(role => role.role === 'super_admin') || false;
   });
-  
+
   const cacheStats = computed(() => permissions.getCacheStats());
-  
+
   // Cleanup on unmount
   onUnmounted(() => {
     // Don't destroy global cache, just clear user-specific data
@@ -297,27 +301,27 @@ export function usePermissions() {
       permissions.clearUserCache(currentUser.value.uid);
     }
   });
-  
+
   return {
     // State
     isLoaded,
     isLoading,
     error,
     version,
-    
+
     // Methods
     loadPermissions,
     hasPermission,
     hasPermissions,
     getUserRole,
-    
+
     // Computed
-    canCreateGroups,
+    canCreateSchools,
     canManageUsers,
     canExcludeAdmins,
     isSuperAdmin,
     cacheStats,
-    
+
     // Direct access for advanced usage
     permissions,
     cache
@@ -335,18 +339,18 @@ export function usePermissions() {
     <slot name="loading" v-if="isLoading">
       <div class="permission-loading">Checking permissions...</div>
     </slot>
-    
+
     <!-- Error state -->
     <slot name="error" v-else-if="error" :error="error">
       <div class="permission-error">Permission check failed: {{ error }}</div>
     </slot>
-    
+
     <!-- Access denied -->
     <slot name="denied" v-else>
       <div class="permission-denied">Access denied</div>
     </slot>
   </div>
-  
+
   <!-- Authorized content -->
   <slot v-else />
 </template>
@@ -358,8 +362,9 @@ import { usePermissions } from '@/composables/usePermissions';
 interface Props {
   resource?: string;
   action?: string;
+  subResource?: string; // Required for nested resources (groups, admins)
   role?: string;
-  permissions?: Array<{resource: string, action: string}>;
+  permissions?: Array<{resource: string, action: string, subResource?: string}>;
   requireAll?: boolean; // For multiple permissions, require all vs any
 }
 
@@ -376,7 +381,7 @@ const evaluatePermissions = async () => {
     checkPermissions.value = false;
     return;
   }
-  
+
   try {
     // Role-based check
     if (props.role) {
@@ -384,17 +389,17 @@ const evaluatePermissions = async () => {
       checkPermissions.value = userRole === props.role;
       return;
     }
-    
+
     // Single permission check
     if (props.resource && props.action) {
-      checkPermissions.value = await hasPermission(props.resource, props.action);
+      checkPermissions.value = await hasPermission(props.resource, props.action, props.subResource);
       return;
     }
-    
+
     // Multiple permissions check
     if (props.permissions && props.permissions.length > 0) {
       const results = await hasPermissions(props.permissions);
-      
+
       if (props.requireAll) {
         checkPermissions.value = results.every(result => result.allowed);
       } else {
@@ -402,7 +407,7 @@ const evaluatePermissions = async () => {
       }
       return;
     }
-    
+
     // No valid permission criteria
     checkPermissions.value = false;
   } catch (err) {
@@ -456,8 +461,9 @@ import { useAuth } from '@/composables/useAuth';
 export interface RoutePermission {
   resource?: string;
   action?: string;
+  subResource?: string; // Required for nested resources (groups, admins)
   role?: string;
-  permissions?: Array<{resource: string, action: string}>;
+  permissions?: Array<{resource: string, action: string, subResource?: string}>;
   requireAll?: boolean;
 }
 
@@ -468,30 +474,30 @@ export async function checkRoutePermissions(
 ) {
   const { isAuthenticated } = useAuth();
   const { hasPermission, hasPermissions, getUserRole, isLoaded } = usePermissions();
-  
+
   // Check if route requires authentication
   if (to.meta.requiresAuth && !isAuthenticated.value) {
     next('/login');
     return;
   }
-  
+
   // Check if route has permission requirements
   const routePermission = to.meta.permission as RoutePermission;
   if (!routePermission) {
     next();
     return;
   }
-  
+
   // Wait for permissions to load
   if (!isLoaded.value) {
     // You might want to show a loading page here
     next('/loading');
     return;
   }
-  
+
   try {
     let hasAccess = false;
-    
+
     // Role-based check
     if (routePermission.role) {
       const userRole = getUserRole();
@@ -499,19 +505,19 @@ export async function checkRoutePermissions(
     }
     // Single permission check
     else if (routePermission.resource && routePermission.action) {
-      hasAccess = await hasPermission(routePermission.resource, routePermission.action);
+      hasAccess = await hasPermission(routePermission.resource, routePermission.action, routePermission.subResource);
     }
     // Multiple permissions check
     else if (routePermission.permissions) {
       const results = await hasPermissions(routePermission.permissions);
-      
+
       if (routePermission.requireAll) {
         hasAccess = results.every(result => result.allowed);
       } else {
         hasAccess = results.some(result => result.allowed);
       }
     }
-    
+
     if (hasAccess) {
       next();
     } else {
@@ -536,7 +542,8 @@ const router = createRouter({
         requiresAuth: true,
         permission: {
           resource: 'groups',
-          action: 'read'
+          action: 'read',
+          subResource: 'schools'
         }
       }
     },
@@ -557,7 +564,7 @@ const router = createRouter({
         requiresAuth: true,
         permission: {
           permissions: [
-            { resource: 'groups', action: 'read' },
+            { resource: 'groups', action: 'read', subResource: 'schools' },
             { resource: 'users', action: 'read' }
           ],
           requireAll: false // User needs access to either groups OR users
@@ -594,7 +601,7 @@ functions/
 
 ```typescript
 // middleware/permissions.ts
-import { PermissionService, CacheService } from 'permissions-service';
+import { PermissionService, CacheService } from '@levante-framework/permissions-core';
 import { getFirestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 
@@ -606,22 +613,22 @@ const PERMISSION_RELOAD_INTERVAL = 300000; // 5 minutes
 
 export async function getPermissionService(): Promise<PermissionService> {
   const now = Date.now();
-  
+
   // Initialize if needed
   if (!globalCache) {
     globalCache = new CacheService(300000); // 5 minutes
   }
-  
+
   if (!globalPermissions) {
     globalPermissions = new PermissionService(globalCache);
   }
-  
+
   // Reload permissions periodically
   if (now - lastPermissionLoad > PERMISSION_RELOAD_INTERVAL || !globalPermissions.isPermissionsLoaded()) {
     await loadPermissions(globalPermissions);
     lastPermissionLoad = now;
   }
-  
+
   return globalPermissions;
 }
 
@@ -629,21 +636,21 @@ async function loadPermissions(permissionService: PermissionService): Promise<vo
   try {
     const db = getFirestore();
     const permissionDoc = await db.doc('system/permissions').get();
-    
+
     if (!permissionDoc.exists) {
       throw new Error('Permission matrix not found');
     }
-    
+
     const result = permissionService.loadPermissions(permissionDoc.data());
-    
+
     if (!result.success) {
       throw new Error(`Permission validation failed: ${result.errors.join(', ')}`);
     }
-    
+
     if (result.warnings.length > 0) {
       console.warn('Permission warnings:', result.warnings);
     }
-    
+
     console.log(`Permissions loaded successfully, version: ${permissionService.getVersion()}`);
   } catch (error) {
     console.error('Failed to load permissions:', error);
@@ -654,6 +661,7 @@ async function loadPermissions(permissionService: PermissionService): Promise<vo
 export interface PermissionMiddlewareOptions {
   resource: string;
   action: string;
+  subResource?: string; // Required for nested resources (groups, admins)
   optional?: boolean; // If true, continues even if permission check fails
 }
 
@@ -661,36 +669,37 @@ export function requirePermission(options: PermissionMiddlewareOptions) {
   return async (request: any, response?: any) => {
     try {
       const permissions = await getPermissionService();
-      
+
       // Extract user and site from request context
       const { uid: userId } = request.auth;
       const siteId = request.data?.siteId || request.headers?.['x-site-id'];
-      
+
       if (!siteId) {
         throw new HttpsError('invalid-argument', 'Site ID is required');
       }
-      
+
       // Get user data
       const user = await getUserWithRoles(userId);
       if (!user) {
         throw new HttpsError('not-found', 'User not found');
       }
-      
+
       // Check permission
       const hasPermission = permissions.canPerformSiteAction(
         user,
         siteId,
         options.resource,
-        options.action
+        options.action,
+        options.subResource
       );
-      
+
       if (!hasPermission && !options.optional) {
         throw new HttpsError(
           'permission-denied',
           `Insufficient permissions for ${options.action} on ${options.resource}`
         );
       }
-      
+
       // Add permission context to request
       request.permissionContext = {
         hasPermission,
@@ -699,7 +708,7 @@ export function requirePermission(options: PermissionMiddlewareOptions) {
         resource: options.resource,
         action: options.action
       };
-      
+
       return hasPermission;
     } catch (error) {
       if (options.optional) {
@@ -714,14 +723,15 @@ export function requirePermission(options: PermissionMiddlewareOptions) {
 async function getUserWithRoles(userId: string) {
   const db = getFirestore();
   const userDoc = await db.doc(`users/${userId}`).get();
-  
+
   if (!userDoc.exists) {
     return null;
   }
-  
+
   const userData = userDoc.data();
   return {
     uid: userId,
+    email: userData?.email,
     roles: userData?.roles || [],
     userType: userData?.userType
   };
@@ -736,25 +746,26 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { requirePermission } from '../middleware/permissions.js';
 
 export const createGroup = onCall(async (request) => {
-  // Check permission
+  // Check permission (groups is nested, so a sub-resource is required)
   await requirePermission({
     resource: 'groups',
-    action: 'create'
+    action: 'create',
+    subResource: 'schools'
   })(request);
-  
+
   const { name, description } = request.data;
   const { siteId, user } = request.permissionContext;
-  
+
   try {
     // Validate input
     if (!name || typeof name !== 'string') {
       throw new HttpsError('invalid-argument', 'Group name is required');
     }
-    
+
     // Create group in Firestore
     const db = getFirestore();
     const groupRef = db.collection('groups').doc();
-    
+
     await groupRef.set({
       id: groupRef.id,
       name,
@@ -764,7 +775,7 @@ export const createGroup = onCall(async (request) => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    
+
     return {
       success: true,
       groupId: groupRef.id,
@@ -772,11 +783,11 @@ export const createGroup = onCall(async (request) => {
     };
   } catch (error) {
     console.error('Create group failed:', error);
-    
+
     if (error instanceof HttpsError) {
       throw error;
     }
-    
+
     throw new HttpsError('internal', 'Failed to create group');
   }
 });
@@ -784,44 +795,45 @@ export const createGroup = onCall(async (request) => {
 export const updateGroup = onCall(async (request) => {
   await requirePermission({
     resource: 'groups',
-    action: 'update'
+    action: 'update',
+    subResource: 'schools'
   })(request);
-  
+
   const { groupId, updates } = request.data;
   const { siteId } = request.permissionContext;
-  
+
   try {
     const db = getFirestore();
     const groupRef = db.doc(`groups/${groupId}`);
-    
+
     // Verify group exists and belongs to site
     const groupDoc = await groupRef.get();
     if (!groupDoc.exists) {
       throw new HttpsError('not-found', 'Group not found');
     }
-    
+
     const groupData = groupDoc.data();
     if (groupData?.siteId !== siteId) {
       throw new HttpsError('permission-denied', 'Group does not belong to current site');
     }
-    
+
     // Update group
     await groupRef.update({
       ...updates,
       updatedAt: new Date()
     });
-    
+
     return {
       success: true,
       message: 'Group updated successfully'
     };
   } catch (error) {
     console.error('Update group failed:', error);
-    
+
     if (error instanceof HttpsError) {
       throw error;
     }
-    
+
     throw new HttpsError('internal', 'Failed to update group');
   }
 });
@@ -829,41 +841,42 @@ export const updateGroup = onCall(async (request) => {
 export const deleteGroup = onCall(async (request) => {
   await requirePermission({
     resource: 'groups',
-    action: 'delete'
+    action: 'delete',
+    subResource: 'schools'
   })(request);
-  
+
   const { groupId } = request.data;
   const { siteId } = request.permissionContext;
-  
+
   try {
     const db = getFirestore();
     const groupRef = db.doc(`groups/${groupId}`);
-    
+
     // Verify group exists and belongs to site
     const groupDoc = await groupRef.get();
     if (!groupDoc.exists) {
       throw new HttpsError('not-found', 'Group not found');
     }
-    
+
     const groupData = groupDoc.data();
     if (groupData?.siteId !== siteId) {
       throw new HttpsError('permission-denied', 'Group does not belong to current site');
     }
-    
+
     // Delete group
     await groupRef.delete();
-    
+
     return {
       success: true,
       message: 'Group deleted successfully'
     };
   } catch (error) {
     console.error('Delete group failed:', error);
-    
+
     if (error instanceof HttpsError) {
       throw error;
     }
-    
+
     throw new HttpsError('internal', 'Failed to delete group');
   }
 });
@@ -876,7 +889,7 @@ Permission logging is optional and controlled through `LoggingModeConfig`. Provi
 ### Backend (Firestore) Sink
 
 ```typescript
-import { PermissionService, CacheService } from 'permissions-service';
+import { PermissionService, CacheService } from '@levante-framework/permissions-core';
 import { getFirestore } from 'firebase-admin/firestore';
 
 const cache = new CacheService();
@@ -902,7 +915,7 @@ const permissions = new PermissionService(cache, loggingConfig, FirestoreSink);
 ### Frontend (Navigator Beacon) Sink
 
 ```typescript
-import { PermissionService, CacheService } from 'permissions-service';
+import { PermissionService, CacheService } from '@levante-framework/permissions-core';
 
 const cache = new CacheService();
 const loggingConfig = { mode: 'baseline' as const };
@@ -937,52 +950,61 @@ service cloud.firestore {
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function getUserRoles() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roles;
     }
-    
+
     function hasRoleInSite(siteId, role) {
       let userRoles = getUserRoles();
       return userRoles != null && 
              userRoles.hasAny([{siteId: siteId, role: role}]);
     }
-    
+
     function isSuperAdmin() {
       let userRoles = getUserRoles();
       return userRoles != null && 
              userRoles.hasAny([{role: 'super_admin'}]);
     }
-    
+
+    // Rules cannot iterate a list with a predicate, so the qualifying roles
+    // (the requested role plus every higher role in ROLE_HIERARCHY) are
+    // enumerated explicitly and matched via hasAny map equality. User role
+    // entries are exactly {siteId, role}, so equality matches.
+    function siteRolesAtLeast(siteId, minRole) {
+      return minRole == 'participant'
+               ? [{siteId: siteId, role: 'participant'}, {siteId: siteId, role: 'research_assistant'}, {siteId: siteId, role: 'admin'}, {siteId: siteId, role: 'site_admin'}, {siteId: siteId, role: 'super_admin'}]
+           : minRole == 'research_assistant'
+               ? [{siteId: siteId, role: 'research_assistant'}, {siteId: siteId, role: 'admin'}, {siteId: siteId, role: 'site_admin'}, {siteId: siteId, role: 'super_admin'}]
+           : minRole == 'admin'
+               ? [{siteId: siteId, role: 'admin'}, {siteId: siteId, role: 'site_admin'}, {siteId: siteId, role: 'super_admin'}]
+           : minRole == 'site_admin'
+               ? [{siteId: siteId, role: 'site_admin'}, {siteId: siteId, role: 'super_admin'}]
+           : minRole == 'super_admin'
+               ? [{siteId: siteId, role: 'super_admin'}]
+           : [];
+    }
+
     function hasMinimumRole(siteId, minRole) {
       let userRoles = getUserRoles();
-      let roleHierarchy = ['participant', 'research_assistant', 'admin', 'site_admin', 'super_admin'];
-      let minLevel = roleHierarchy.indexOf(minRole);
-      
-      if (userRoles == null || minLevel == -1) {
-        return false;
-      }
-      
-      return isSuperAdmin() || 
-             userRoles.hasAny(function(role) {
-               return role.siteId == siteId && 
-                      roleHierarchy.indexOf(role.role) >= minLevel;
-             });
+      // Global super admins (siteId '*') are covered by isSuperAdmin() at the call site.
+      return userRoles != null &&
+             userRoles.hasAny(siteRolesAtLeast(siteId, minRole));
     }
-    
+
     // System documents (permission matrix)
     match /system/{document} {
       allow read: if isAuthenticated();
       allow write: if isSuperAdmin();
     }
-    
+
     // User documents
     match /users/{userId} {
       allow read: if isAuthenticated() && 
                      (request.auth.uid == userId || isSuperAdmin());
       allow write: if isSuperAdmin();
     }
-    
+
     // Groups
     match /groups/{groupId} {
       allow read: if isAuthenticated() && 
@@ -998,7 +1020,7 @@ service cloud.firestore {
                        (hasMinimumRole(resource.data.siteId, 'site_admin') || 
                         isSuperAdmin());
     }
-    
+
     // Assignments
     match /assignments/{assignmentId} {
       allow read: if isAuthenticated() && 
@@ -1014,7 +1036,7 @@ service cloud.firestore {
                        (hasMinimumRole(resource.data.siteId, 'site_admin') || 
                         isSuperAdmin());
     }
-    
+
     // Tasks
     match /tasks/{taskId} {
       allow read: if isAuthenticated() && 
@@ -1050,30 +1072,30 @@ export function useRealtimeGroups() {
   const { currentUser } = useAuth();
   const { currentSite } = useSite();
   const { db } = useFirestore();
-  
+
   const groups = ref([]);
   const loading = ref(false);
   const error = ref(null);
   let unsubscribe: (() => void) | null = null;
-  
+
   const startListening = async () => {
     if (!currentUser.value || !currentSite.value) return;
-    
-    // Check if user can read groups
-    const canRead = await hasPermission('groups', 'read');
+
+    // Check if user can read groups (nested resource requires a sub-resource)
+    const canRead = await hasPermission('groups', 'read', 'schools');
     if (!canRead) {
       error.value = 'Insufficient permissions to view groups';
       return;
     }
-    
+
     loading.value = true;
-    
+
     try {
       const groupsQuery = query(
         collection(db, 'groups'),
         where('siteId', '==', currentSite.value.id)
       );
-      
+
       unsubscribe = onSnapshot(
         groupsQuery,
         (snapshot) => {
@@ -1095,14 +1117,14 @@ export function useRealtimeGroups() {
       loading.value = false;
     }
   };
-  
+
   const stopListening = () => {
     if (unsubscribe) {
       unsubscribe();
       unsubscribe = null;
     }
   };
-  
+
   // Auto-start/stop based on user and site changes
   watch([currentUser, currentSite], () => {
     stopListening();
@@ -1110,9 +1132,9 @@ export function useRealtimeGroups() {
       startListening();
     }
   }, { immediate: true });
-  
+
   onUnmounted(stopListening);
-  
+
   return {
     groups,
     loading,
@@ -1136,20 +1158,20 @@ import { useAuth } from './useAuth';
 export function useSite() {
   const { currentUser } = useAuth();
   const { permissions } = usePermissions();
-  
+
   const currentSite = ref(null);
   const availableSites = ref([]);
   const loading = ref(false);
-  
+
   const loadAvailableSites = async () => {
     if (!currentUser.value) return;
-    
+
     loading.value = true;
-    
+
     try {
       // Get sites where user has at least participant role
       const sites = permissions.getSitesWithMinRole(currentUser.value, 'participant');
-      
+
       if (sites.includes('*')) {
         // Super admin - load all sites
         availableSites.value = await loadAllSites();
@@ -1157,7 +1179,7 @@ export function useSite() {
         // Load specific sites
         availableSites.value = await loadSitesByIds(sites);
       }
-      
+
       // Set default site if none selected
       if (!currentSite.value && availableSites.value.length > 0) {
         currentSite.value = availableSites.value[0];
@@ -1168,27 +1190,27 @@ export function useSite() {
       loading.value = false;
     }
   };
-  
+
   const switchSite = (site) => {
     if (availableSites.value.find(s => s.id === site.id)) {
       currentSite.value = site;
-      
+
       // Clear user cache when switching sites
       if (currentUser.value) {
         permissions.clearUserCache(currentUser.value.uid);
       }
     }
   };
-  
+
   const userRoleInCurrentSite = computed(() => {
     if (!currentUser.value || !currentSite.value) return null;
-    
+
     return permissions.getUserSiteRole(currentUser.value, currentSite.value.id);
   });
-  
+
   // Load sites when user changes
   watch(currentUser, loadAvailableSites, { immediate: true });
-  
+
   return {
     currentSite,
     availableSites,
@@ -1206,69 +1228,61 @@ export function useSite() {
 
 ```typescript
 // tests/permissions.test.ts
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { PermissionService, CacheService } from 'permissions-service';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { PermissionService, CacheService, DEFAULT_PERMISSION_MATRIX } from '@levante-framework/permissions-core';
 
 describe('Permission Integration', () => {
   let permissions: PermissionService;
   let cache: CacheService;
-  
+
   beforeEach(() => {
     cache = new CacheService();
     permissions = new PermissionService(cache);
-    
-    // Load test permission matrix
-    const testMatrix = {
-      version: '1.0.0',
-      permissions: {
-        admin: {
-          groups: ['create', 'read', 'update'],
-          users: ['create', 'read', 'update']
-        },
-        site_admin: {
-          groups: ['create', 'read', 'update', 'delete'],
-          users: ['create', 'read', 'update', 'delete'],
-          admins: ['exclude']
-        }
-      }
-    };
-    
-    permissions.loadPermissions(testMatrix);
+
+    // Load a valid permission document. The document requires `version`,
+    // `updatedAt`, and a matrix with nested `groups`/`admins` sub-resources.
+    permissions.loadPermissions({
+      version: '1.1.0',
+      updatedAt: '2025-07-18T10:00:00Z',
+      permissions: DEFAULT_PERMISSION_MATRIX
+    });
   });
-  
+
   it('should handle Vue composable integration', async () => {
     const user = {
       uid: 'test-user',
+      email: 'admin@example.com',
       roles: [{ siteId: 'site1', role: 'admin' }]
     };
-    
-    // Test permission checking
-    const canCreate = permissions.canPerformSiteAction(user, 'site1', 'groups', 'create');
-    const canDelete = permissions.canPerformSiteAction(user, 'site1', 'groups', 'delete');
-    
-    expect(canCreate).toBe(true);
-    expect(canDelete).toBe(false);
+
+    // Nested resources require a sub-resource. Admin can read but not create schools.
+    const canRead = permissions.canPerformSiteAction(user, 'site1', 'groups', 'read', 'schools');
+    const canCreate = permissions.canPerformSiteAction(user, 'site1', 'groups', 'create', 'schools');
+
+    expect(canRead).toBe(true);
+    expect(canCreate).toBe(false);
   });
-  
+
   it('should handle Cloud Functions integration', async () => {
     const user = {
       uid: 'test-user',
+      email: 'site-admin@example.com',
       roles: [{ siteId: 'site1', role: 'site_admin' }]
     };
-    
+
     // Test bulk permission check (common in Cloud Functions)
     const checks = [
-      { resource: 'groups', action: 'create' },
-      { resource: 'groups', action: 'delete' },
-      { resource: 'admins', action: 'exclude' }
+      { resource: 'groups', action: 'create', subResource: 'schools' },
+      { resource: 'groups', action: 'delete', subResource: 'schools' },
+      { resource: 'admins', action: 'exclude', subResource: 'admin' }
     ];
-    
+
     const results = permissions.bulkPermissionCheck(user, 'site1', checks);
-    
+
     expect(results).toEqual([
-      { resource: 'groups', action: 'create', allowed: true },
-      { resource: 'groups', action: 'delete', allowed: true },
-      { resource: 'admins', action: 'exclude', allowed: true }
+      { resource: 'groups', action: 'create', subResource: 'schools', allowed: true },
+      { resource: 'groups', action: 'delete', subResource: 'schools', allowed: true },
+      { resource: 'admins', action: 'exclude', subResource: 'admin', allowed: true }
     ]);
   });
 });
@@ -1284,26 +1298,26 @@ describe('Permission System E2E', () => {
     cy.login('admin@test.com', 'password');
     cy.visit('/dashboard');
   });
-  
+
   it('should show/hide UI elements based on permissions', () => {
     // Admin should see create group button
     cy.get('[data-testid="create-group-btn"]').should('be.visible');
-    
+
     // Admin should not see delete group button
     cy.get('[data-testid="delete-group-btn"]').should('not.exist');
   });
-  
+
   it('should prevent unauthorized actions', () => {
     // Try to access site admin page as regular admin
     cy.visit('/site-admin');
     cy.url().should('include', '/access-denied');
   });
-  
+
   it('should handle site switching', () => {
     // Switch to different site
     cy.get('[data-testid="site-selector"]').click();
     cy.get('[data-testid="site-option-2"]').click();
-    
+
     // Verify permissions are re-evaluated
     cy.get('[data-testid="user-role"]').should('contain', 'admin');
   });
