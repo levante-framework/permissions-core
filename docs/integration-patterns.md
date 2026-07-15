@@ -5,6 +5,7 @@ This document provides detailed integration patterns for using the permissions s
 ## Table of Contents
 
 - [Usage Patterns](#usage-patterns)
+- [Firebase Auth Custom Claims](#firebase-auth-custom-claims)
 - [Vue SPA Integration](#vue-spa-integration)
 - [Firebase Cloud Functions Integration](#firebase-cloud-functions-integration)
 - [Firestore Security Rules](#firestore-security-rules)
@@ -120,6 +121,97 @@ try {
 - Reuse a shared `CacheService` instance (per server process or browser session).
 - Prefer `bulkPermissionCheck` when evaluating multiple actions at once.
 - For Vue integrations, debounce or memoize expensive checks and react to auth/site changes.
+
+## Firebase Auth Custom Claims
+
+`permissions-core` is pure and never reads Firebase Auth. Roles are carried in the
+Firebase Auth token as **custom claims**, and callers (SPA, Cloud Functions, and
+security rules) are responsible for decoding those claims into the package's `User`
+shape before calling a permission method.
+
+### Claims shape
+
+```json
+{
+  "claimsVersion": 1,
+  "isSuperAdmin": false,
+  "siteRoles": {
+    "aB3dE7gH1kL9nP2rT5vX": 0,
+    "kQ2mN8pR4sT6vW1xY3zA": 2
+  }
+}
+```
+
+- `claimsVersion` — integer schema version. Consumers must reject or refresh tokens
+  whose version they don't understand (fail closed).
+- `isSuperAdmin` — global `super_admin`. When `true`, the user is a super admin
+  across all sites; `super_admin` is therefore never encoded in `siteRoles`.
+- `siteRoles` — map of `siteId` → **role code**. A missing key (or `-1`) means the
+  user has no role at that site.
+
+### Role codes
+
+Codes are exactly the `ROLE_HIERARCHY` index, with `-1` reserved for "no role".
+Because `super_admin` is global (see `isSuperAdmin`), `siteRoles` values are `0`–`3`
+in practice.
+
+| Code | Role                 |
+| ---- | -------------------- |
+| -1   | (no role)            |
+| 0    | `participant`        |
+| 1    | `research_assistant` |
+| 2    | `admin`              |
+| 3    | `site_admin`         |
+| 4    | `super_admin` (global — expressed via `isSuperAdmin`, not in `siteRoles`) |
+
+Keep this mapping in lockstep with `ROLE_HIERARCHY` in the package and with the
+Firestore rules helpers below — all three must agree.
+
+### Decoding claims into a `User`
+
+Both the SPA and Cloud Functions build the package's `User` from the verified token
+(`request.auth.token` in Functions, the decoded ID token in the SPA) rather than
+reading roles from a Firestore document:
+
+```typescript
+import type { User, UserRole } from '@levante-framework/permissions-core';
+
+const SUPPORTED_CLAIMS_VERSION = 1;
+
+const ROLE_BY_CODE: Record<number, UserRole['role']> = {
+  0: 'participant',
+  1: 'research_assistant',
+  2: 'admin',
+  3: 'site_admin',
+};
+
+interface LevanteClaims {
+  claimsVersion: number;
+  isSuperAdmin?: boolean;
+  siteRoles?: Record<string, number>;
+}
+
+export function userFromClaims(uid: string, email: string, claims: LevanteClaims): User {
+  if (claims.claimsVersion !== SUPPORTED_CLAIMS_VERSION) {
+    throw new Error(`Unsupported claimsVersion: ${claims.claimsVersion}`);
+  }
+
+  const roles: UserRole[] = [];
+
+  if (claims.isSuperAdmin) {
+    roles.push({ siteId: '*', role: 'super_admin' });
+  }
+
+  for (const [siteId, code] of Object.entries(claims.siteRoles ?? {})) {
+    const role = ROLE_BY_CODE[code]; // -1 / unknown codes are skipped
+    if (role) {
+      roles.push({ siteId, role });
+    }
+  }
+
+  return { uid, email, roles };
+}
+```
 
 ## Vue SPA Integration
 
@@ -943,49 +1035,42 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Helper functions
+    //
+    // Roles are read from Firebase Auth custom claims on the verified token
+    // (see "Firebase Auth Custom Claims"), so no user-document read is needed.
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    function getUserRoles() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roles;
-    }
-
-    function hasRoleInSite(siteId, role) {
-      let userRoles = getUserRoles();
-      return userRoles != null && 
-             userRoles.hasAny([{siteId: siteId, role: role}]);
+    // claimsVersion guards against stale/old-shaped tokens (fail closed).
+    function claimsValid() {
+      return isAuthenticated() && request.auth.token.claimsVersion == 1;
     }
 
     function isSuperAdmin() {
-      let userRoles = getUserRoles();
-      return userRoles != null && 
-             userRoles.hasAny([{role: 'super_admin'}]);
+      return claimsValid() && request.auth.token.isSuperAdmin == true;
     }
 
-    // Rules cannot iterate a list with a predicate, so the qualifying roles
-    // (the requested role plus every higher role in ROLE_HIERARCHY) are
-    // enumerated explicitly and matched via hasAny map equality. User role
-    // entries are exactly {siteId, role}, so equality matches.
-    function siteRolesAtLeast(siteId, minRole) {
-      return minRole == 'participant'
-               ? [{siteId: siteId, role: 'participant'}, {siteId: siteId, role: 'research_assistant'}, {siteId: siteId, role: 'admin'}, {siteId: siteId, role: 'site_admin'}, {siteId: siteId, role: 'super_admin'}]
-           : minRole == 'research_assistant'
-               ? [{siteId: siteId, role: 'research_assistant'}, {siteId: siteId, role: 'admin'}, {siteId: siteId, role: 'site_admin'}, {siteId: siteId, role: 'super_admin'}]
-           : minRole == 'admin'
-               ? [{siteId: siteId, role: 'admin'}, {siteId: siteId, role: 'site_admin'}, {siteId: siteId, role: 'super_admin'}]
-           : minRole == 'site_admin'
-               ? [{siteId: siteId, role: 'site_admin'}, {siteId: siteId, role: 'super_admin'}]
-           : minRole == 'super_admin'
-               ? [{siteId: siteId, role: 'super_admin'}]
-           : [];
+    // Role code for the user at siteId; -1 (or a missing key) means no role.
+    function siteRoleCode(siteId) {
+      return claimsValid()
+               ? request.auth.token.get('siteRoles', {}).get(siteId, -1)
+               : -1;
     }
 
+    // Must match ROLE_HIERARCHY: 0=participant .. 3=site_admin, 4=super_admin.
+    function roleCode(role) {
+      return role == 'participant' ? 0
+           : role == 'research_assistant' ? 1
+           : role == 'admin' ? 2
+           : role == 'site_admin' ? 3
+           : role == 'super_admin' ? 4
+           : -1;
+    }
+
+    // Global super admins (isSuperAdmin) satisfy any site-scoped minimum.
     function hasMinimumRole(siteId, minRole) {
-      let userRoles = getUserRoles();
-      // Global super admins (siteId '*') are covered by isSuperAdmin() at the call site.
-      return userRoles != null &&
-             userRoles.hasAny(siteRolesAtLeast(siteId, minRole));
+      return isSuperAdmin() || siteRoleCode(siteId) >= roleCode(minRole);
     }
 
     // System documents (permission matrix)
