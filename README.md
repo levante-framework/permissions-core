@@ -24,7 +24,11 @@ npm i --save @levante-framework/permissions-core
 ### Basic Usage
 
 ```typescript
-import { PermissionService, CacheService } from '@levante-framework/permissions-core';
+import {
+  PermissionService,
+  CacheService,
+  DEFAULT_PERMISSION_MATRIX
+} from '@levante-framework/permissions-core';
 
 const cache = new CacheService();
 
@@ -37,6 +41,24 @@ const sink = {
 };
 
 const permissions = new PermissionService(cache, loggingConfig, sink);
+
+// Load a permission matrix before checking. Checks fail closed (return false)
+// until this succeeds. In production, fetch this document from Firestore.
+const loadResult = permissions.loadPermissions({
+  version: '1.1.0',
+  updatedAt: '2025-07-18T10:00:00Z',
+  permissions: DEFAULT_PERMISSION_MATRIX
+});
+if (!loadResult.success) {
+  throw new Error(`Failed to load permissions: ${loadResult.errors.join(', ')}`);
+}
+
+// A User is { uid, email, roles }, where roles are per-site.
+const user = {
+  uid: 'user123',
+  email: 'user@example.com',
+  roles: [{ siteId: 'site456', role: 'site_admin' as const }]
+};
 
 // Check if user can perform action on a nested resource
 const canEdit = permissions.canPerformSiteAction(
