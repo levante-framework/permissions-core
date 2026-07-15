@@ -31,54 +31,57 @@ This document describes the GitHub Actions workflows configured for the permissi
 ### 2. Publish Workflow (`.github/workflows/publish.yml`)
 
 **Triggers:**
-- Pushes to `main` branch (excluding docs and markdown files)
+- Manual `workflow_dispatch`, with a required `release-type` input (`patch`, `minor`, or `major`; defaults to `patch`)
 
 **Features:**
-- Automatic version detection
-- Only publishes when version changes
-- Creates GitHub releases
+- Bumps the version, tags, and pushes as part of the run (via `npm version`)
 - Publishes to NPM with public access
+- Creates a GitHub release with auto-generated notes
+- Guarded to run only from `main`
+- Serializes runs via a workflow-level concurrency group (does not cancel in progress)
 
 **Steps:**
-1. Checkout code
-2. Setup Node.js with NPM registry
-3. Install dependencies and run tests
-4. Build package
-5. Check if version changed compared to published version
-6. Publish to NPM (if version changed)
-7. Create GitHub release (if version changed)
+1. Generate a GitHub App token (`actions/create-github-app-token`)
+2. Checkout code using the app token
+3. Fail fast unless the current branch is `main`
+4. Setup Node.js from `.nvmrc` with the NPM registry configured
+5. Install dependencies with `npm ci`
+6. Run tests with `npm run test:run`
+7. Build with `npm run build`
+8. Configure the `github-actions[bot]` git identity
+9. Bump version and create a tag: `npm version <release-type>` (commit message `chore: release v%s [skip ci]`)
+10. Push the commit and tag with `git push --follow-tags`
+11. Publish to NPM with `npm publish --access public`
+12. Create a GitHub release with `gh release create v<version> --generate-notes`
 
 ## Required Secrets
 
-To enable the publish workflow, add these secrets to your GitHub repository:
+The publish workflow authenticates through a GitHub App and publishes to NPM via OIDC trusted publishing. Add these repository secrets:
 
-### `NPM_TOKEN`
-1. Go to [npmjs.com](https://www.npmjs.com) and log in
-2. Go to Access Tokens in your account settings
-3. Create a new token with "Automation" type
-4. Add the token as `NPM_TOKEN` in GitHub repository secrets
+### `LEVANTE_BOT_APP_CLIENT_ID`
+The client ID of the GitHub App used to mint a token for checkout, pushing the release commit/tag, and creating the release.
 
-### `GITHUB_TOKEN`
-This is automatically provided by GitHub Actions - no setup required.
+### `LEVANTE_BOT_APP_PRIVATE_KEY`
+The private key for that same GitHub App.
+
+> NPM authentication uses OIDC trusted publishing (the workflow requests `id-token: write`), so no `NPM_TOKEN` secret is required. Configure this package as a trusted publisher for the workflow in your NPM package settings.
 
 ## Package Configuration
 
 The workflows assume:
 - Package name: `@levante-framework/permissions-core`
 - Main branch: `main`
-- Node.js versions: 22 and 24
+- Node.js: CI tests a matrix of 22 and 24; publish uses the version pinned in `.nvmrc`
 - NPM scripts: `build`, `check`, `test:run`
 
 ## Version Management
 
-The publish workflow automatically detects version changes by comparing:
-- Current version in `package.json`
-- Latest published version on NPM
+The publish workflow owns version bumping. Based on the chosen `release-type`, it runs `npm version` to update `package.json`, commit (`chore: release v%s [skip ci]`), and tag, then pushes the commit and tag.
 
 **To publish a new version:**
-1. Update version in `package.json`
-2. Commit and push to `main` branch
-3. GitHub Actions will automatically publish and create a release
+1. Go to the Actions tab and run the **Publish permissions-core** workflow from `main`
+2. Choose the release type (`patch`, `minor`, or `major`)
+3. The workflow bumps the version, publishes to NPM, and creates the GitHub release
 
 ## Workflow Status
 

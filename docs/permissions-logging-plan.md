@@ -4,8 +4,8 @@
 
 ## Phase 1 — Reason Tracking Foundations
 
-- [x] Audit `src/permissions.ts` to list every decision path (loaded state, params, sub-resources, role lookup, final allow/deny).
-- [x] Define a `PermDecision` union (`'allow' | 'deny' | 'indeterminate'`) and `PermReason` union with codes: `NOT_LOADED`, `MISSING_PARAMS`, `REQUIRES_SUBRESOURCE`, `INVALID_SUBRESOURCE`, `NO_ROLE`, `NOT_ALLOWED`, `ALLOWED`.
+- [x] Audit `src/services/permissionService.ts` to list every decision path (loaded state, params, sub-resources, role lookup, final allow/deny).
+- [x] Define a `PermissionDecision` union (`'allow' | 'deny' | 'indeterminate'`) and `PermissionReason` union with codes: `NOT_LOADED`, `MISSING_PARAMS`, `REQUIRES_SUBRESOURCE`, `INVALID_SUBRESOURCE`, `NO_ROLE`, `NOT_ALLOWED`, `ALLOWED` (paired as `PermissionDecisionDetail`).
 - [x] Extend internal evaluation to derive `{ decision, reason }` alongside the existing boolean result without changing the public API.
 - [x] Gate the reason computation so it only runs when logging is enabled (re-use the sink flag in Phase 3 to avoid baseline overhead).
 - [x] Update or add unit tests that cover all reason codes, ensuring the boolean contract stays intact.
@@ -21,9 +21,9 @@
 ## Phase 3 — Event Sink Integration
 
 - [x] Define the `PermEventSink` interface with `isEnabled(): boolean` and `emit(evt: PermEvent): void`.
-- [x] Shape the `PermEvent` payload to include `{ decision, reason, action, resourceKey, siteId, userId?, timestamp, environment }`, leaving room for future fields (like `requestId`).
-- [x] Provide a default `NoopSink` implementation used when no sink is supplied.
-- [x] Update `PermissionService` to accept an optional sink via constructor (defaulting to `NoopSink`) and to invoke it when `sink.isEnabled()` returns true.
+- [x] Shape the `PermEvent` payload to include `{ decision, reason, action?, resource?, subResource?, resourceKey?, siteId?, userId?, timestamp, environment }`, leaving room for future fields (like `requestId`).
+- [x] Provide a default `NoopPermEventSink` implementation used when no sink is supplied.
+- [x] Update `PermissionService` to accept an optional sink via constructor (defaulting to `NoopPermEventSink`) and to invoke it when `sink.isEnabled()` returns true.
 - [x] Ensure `emit` calls are fire-and-forget; the service should remain synchronous for callers.
 
 ## Phase 4 — Logging Destinations & Hygiene

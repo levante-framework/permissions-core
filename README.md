@@ -1,4 +1,4 @@
-# Permissions Service
+# @levante-framework/permissions-core
 
 A TypeScript package implementing a resource-based access control system for multi-site platforms. Designed for use in both frontend (Vue SPA) and backend (Firebase Cloud Functions) environments.
 
@@ -16,7 +16,7 @@ A TypeScript package implementing a resource-based access control system for mul
 ## Installation
 
 ```bash
-npm install permissions-service
+npm i --save @levante-framework/permissions-core
 ```
 
 ## Quick Start
@@ -24,7 +24,11 @@ npm install permissions-service
 ### Basic Usage
 
 ```typescript
-import { PermissionService, CacheService } from 'permissions-service';
+import {
+  PermissionService,
+  CacheService,
+  DEFAULT_PERMISSION_MATRIX
+} from '@levante-framework/permissions-core';
 
 const cache = new CacheService();
 
@@ -37,6 +41,24 @@ const sink = {
 };
 
 const permissions = new PermissionService(cache, loggingConfig, sink);
+
+// Load a permission matrix before checking. Checks fail closed (return false)
+// until this succeeds. In production, fetch this document from Firestore.
+const loadResult = permissions.loadPermissions({
+  version: '1.1.0',
+  updatedAt: '2025-07-18T10:00:00Z',
+  permissions: DEFAULT_PERMISSION_MATRIX
+});
+if (!loadResult.success) {
+  throw new Error(`Failed to load permissions: ${loadResult.errors.join(', ')}`);
+}
+
+// A User is { uid, email, roles }, where roles are per-site.
+const user = {
+  uid: 'user123',
+  email: 'user@example.com',
+  roles: [{ siteId: 'site456', role: 'site_admin' as const }]
+};
 
 // Check if user can perform action on a nested resource
 const canEdit = permissions.canPerformSiteAction(
@@ -58,7 +80,7 @@ if (canEdit) {
 // functions/src/permissions.ts
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
-import { PermissionService, CacheService } from 'permissions-service';
+import { PermissionService, CacheService } from '@levante-framework/permissions-core';
 
 // Module-level cache for container persistence
 const cache = new CacheService();
@@ -80,14 +102,19 @@ const firestoreSink = {
 
 export const updateGroup = onCall(async (request) => {
   const permissions = new PermissionService(cache, loggingConfig, firestoreSink);
-  const { userId, siteId } = request.auth;
-  
-  // Check permission
-  const canUpdate = await permissions.hasPermission(
-    userId,
+  // Ensure the matrix is loaded (e.g. permissions.loadPermissions(await fetchDoc())).
+  const { siteId } = request.data;
+
+  // Build the User object ({ uid, email, roles }) from your user store.
+  const user = await getUserWithRoles(request.auth.uid);
+
+  // Nested resources (groups, admins) require a sub-resource. Returns a boolean.
+  const canUpdate = permissions.canPerformSiteAction(
+    user,
     siteId,
     'groups',
-    'update'
+    'update',
+    'schools'
   );
   
   if (!canUpdate) {
@@ -102,7 +129,7 @@ export const updateGroup = onCall(async (request) => {
 
 ```typescript
 // composables/usePermissions.ts
-import { PermissionService, CacheService } from 'permissions-service';
+import { PermissionService, CacheService } from '@levante-framework/permissions-core';
 import { ref, computed } from 'vue';
 
 // Session-level cache
@@ -110,23 +137,24 @@ const cache = new CacheService();
 const permissions = new PermissionService(cache);
 
 export function usePermissions() {
-  const currentUser = ref(null);
+  const currentUser = ref(null); // a User object: { uid, email, roles }
   const currentSite = ref(null);
   
-  const canCreateGroups = computed(async () => {
+  const canCreateSchools = computed(() => {
     if (!currentUser.value || !currentSite.value) return false;
     
-    return await permissions.hasPermission(
-      currentUser.value.id,
+    return permissions.canPerformSiteAction(
+      currentUser.value,
       currentSite.value.id,
       'groups',
-      'create'
+      'create',
+      'schools'
     );
   });
   
   return {
-    canCreateGroups,
-    hasPermission: permissions.hasPermission.bind(permissions)
+    canCreateSchools,
+    canPerformSiteAction: permissions.canPerformSiteAction.bind(permissions)
   };
 }
 ```
@@ -136,7 +164,7 @@ export function usePermissions() {
 Permission decisions remain boolean for callers, but you can enable structured logging by supplying a `LoggingModeConfig` and sink:
 
 ```typescript
-import { PermissionService, CacheService } from 'permissions-service';
+import { PermissionService, CacheService } from '@levante-framework/permissions-core';
 
 const cache = new CacheService();
 const loggingConfig = { mode: 'baseline' as const };
@@ -208,6 +236,7 @@ The permission system uses nested sub-resources for `groups` and `admins`:
 - `site_admin` - Site administrator accounts
 - `admin` - Admin accounts
 - `research_assistant` - Research assistant accounts
+- `super_admin` - Super administrator accounts
 
 **Flat Resources:**
 - `assignments` - Task assignments
@@ -228,7 +257,8 @@ The permission system uses nested sub-resources for `groups` and `admins`:
     "admins": {
       "site_admin": ["read"],
       "admin": ["read"],
-      "research_assistant": ["create", "read"]
+      "research_assistant": ["create", "read"],
+      "super_admin": []
     },
     "assignments": ["create", "read", "update", "delete"],
     "users": ["create", "read", "update"],
@@ -331,13 +361,13 @@ const adminTypes = permissions.getAccessibleAdminSubResources(user, 'site456', '
 // Returns: ['research_assistant']
 ```
 
-##### `getUserRole(userId, siteId)`
+##### `getUserSiteRole(user, siteId)`
 
-Get the user's role for a specific site.
+Get the user's role for a specific site (returns `Role | null`; super admins resolve to `'super_admin'`).
 
 ```typescript
-const role = await permissions.getUserRole('user123', 'site456');
-// Returns: 'admin' | 'site_admin' | etc.
+const role = permissions.getUserSiteRole(user, 'site456');
+// Returns: 'admin' | 'site_admin' | null | etc.
 ```
 
 ##### `clearUserCache(userId)`
@@ -345,7 +375,7 @@ const role = await permissions.getUserRole('user123', 'site456');
 Clear cached data for a specific user.
 
 ```typescript
-await permissions.clearUserCache('user123');
+permissions.clearUserCache('user123');
 ```
 
 ### CacheService
@@ -353,50 +383,62 @@ await permissions.clearUserCache('user123');
 #### Constructor
 
 ```typescript
-new CacheService(defaultTtl?: number) // Default: 5 minutes
+new CacheService(defaultTtl?: number) // Default: 3600000 ms (1 hour)
 ```
 
 #### Methods
 
 ##### `get(key)`
 
-Retrieve cached value.
+Retrieve cached value (returns `null` if missing or expired).
 
 ```typescript
 const value = cache.get('user:123:permissions');
 ```
 
-##### `set(key, value, ttl?)`
+##### `set(key, value, options?)`
 
-Store value in cache with optional TTL.
+Store value in cache with an optional `{ ttl }` (milliseconds).
 
 ```typescript
-cache.set('user:123:permissions', permissions, 300000); // 5 minutes
+cache.set('user:123:permissions', permissions, { ttl: 300000 }); // 5 minutes
 ```
 
-##### `delete(key)` / `clear()`
+##### `clearUser(userId)` / `clear()`
 
-Remove specific key or clear entire cache.
+Clear a specific user's entries or the entire cache.
 
 ```typescript
-cache.delete('user:123:permissions');
+cache.clearUser('user123');
 cache.clear();
+```
+
+##### `has(key)` / `size()` / `destroy()`
+
+Check membership, read the entry count, or stop the cleanup timer and clear all data.
+
+```typescript
+if (cache.has('user:123:permissions')) { /* ... */ }
+const count = cache.size();
+cache.destroy();
 ```
 
 ## User Data Structure
 
-Users must have the following structure in Firestore:
+The service expects a `User` object with the following structure:
 
 ```typescript
 interface User {
-  id: string;
+  uid: string;
+  email: string;
   roles: Array<{
     siteId: string;
     role: 'participant' | 'research_assistant' | 'admin' | 'site_admin' | 'super_admin';
   }>;
-  userType?: 'admin' | 'student' | 'teacher' | 'caregiver';
 }
 ```
+
+Note: `userType` ('admin' | 'student' | 'teacher' | 'caregiver') is a separate platform concept about assessment eligibility and is not part of the package's `User` type or permission checks.
 
 ## Permission Matrix Document
 
@@ -415,6 +457,7 @@ interface PermissionMatrix {
       site_admin: Action[];
       admin: Action[];
       research_assistant: Action[];
+      super_admin: Action[];
     };
     assignments: Action[];
     users: Action[];
@@ -446,7 +489,8 @@ interface PermissionDocument {
       "admins": {
         "site_admin": ["create", "read"],
         "admin": ["create", "read", "update", "delete", "exclude"],
-        "research_assistant": ["create", "read", "update", "delete"]
+        "research_assistant": ["create", "read", "update", "delete"],
+        "super_admin": []
       },
       "tasks": ["create", "read", "update", "delete", "exclude"]
     }
@@ -458,18 +502,22 @@ interface PermissionDocument {
 
 ## Error Handling
 
-The service throws specific errors for different scenarios:
+Permission checks fail closed: `canPerformSiteAction` / `canPerformGlobalAction` return `false` (never throw) for missing data, unloaded permissions, or a missing/invalid sub-resource, and log a `console.warn` for debugging.
+
+Validation errors surface when loading the matrix. `loadPermissions` returns a result object instead of throwing:
 
 ```typescript
-try {
-  const canEdit = await permissions.hasPermission(userId, siteId, 'groups', 'update');
-} catch (error) {
-  if (error.message.includes('User not found')) {
-    // Handle missing user
-  } else if (error.message.includes('Permission matrix not found')) {
-    // Handle missing configuration
-  }
+const result = permissions.loadPermissions(permissionDoc);
+if (!result.success) {
+  // result.errors: string[] describing why the document was rejected
+  throw new Error(`Failed to load permissions: ${result.errors.join(', ')}`);
 }
+if (result.warnings.length > 0) {
+  console.warn('Permission warnings:', result.warnings);
+}
+
+// Checks are safe to call even before load; they simply return false until loaded.
+const canEdit = permissions.canPerformSiteAction(user, siteId, 'groups', 'update', 'schools');
 ```
 
 ## Performance Considerations
@@ -478,13 +526,13 @@ try {
 
 - **Frontend**: Session-level cache, cleared on user/site changes
 - **Backend**: Module-level cache for container persistence
-- **TTL**: Default 5 minutes, configurable per cache instance
-- **Bulk Operations**: Use `hasPermissions()` for multiple checks
+- **TTL**: Default 1 hour, configurable per cache instance
+- **Bulk Operations**: Use `bulkPermissionCheck()` for multiple checks
 
 ### Best Practices
 
 1. **Reuse Cache Instances**: Create once per session/container
-2. **Bulk Checks**: Use `hasPermissions()` for multiple permission checks
+2. **Bulk Checks**: Use `bulkPermissionCheck()` for multiple permission checks
 3. **Clear Cache**: Clear user cache after role changes
 4. **Error Handling**: Always handle permission check failures gracefully
 
@@ -493,22 +541,28 @@ try {
 ### Build
 
 ```bash
-npm run build    # Compile TypeScript
-npm run dev      # Watch mode
-npm run clean    # Remove dist directory
+npm run build     # Compile TypeScript (tsc)
+npm run dev       # Watch mode
+```
+
+### Lint & Format
+
+```bash
+npm run check     # Biome check
+npm run check:fix # Biome check with auto-fix
 ```
 
 ### Testing
 
 ```bash
-npm test         # Run tests in watch mode
-npm run test:run # Run tests once
+npm test          # Run tests in watch mode
+npm run test:run  # Run tests once
 ```
 
 ### Package Testing
 
 ```bash
-npm pack         # Create tarball for local testing
+npm pack          # Create tarball for local testing (npm built-in)
 ```
 
 ## Migration from Organization-based Permissions
@@ -522,4 +576,4 @@ This package replaces organization-based permissions with resource-based permiss
 
 ## License
 
-TBD
+ISC

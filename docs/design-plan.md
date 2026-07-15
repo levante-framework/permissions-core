@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the design for a shared TypeScript package (`@yourorg/permissions-core`) that implements a resource-based access control system for a multi-site platform. The package will be used across Vue SPA frontend and Firebase Cloud Functions backend.
+This document outlines the design for a shared TypeScript package (`@levante-framework/permissions-core`) that implements a resource-based access control system for a multi-site platform. The package will be used across Vue SPA frontend and Firebase Cloud Functions backend.
 
 ## Core Architecture
 
@@ -12,6 +12,11 @@ This document outlines the design for a shared TypeScript package (`@yourorg/per
 export type Role = 'super_admin' | 'site_admin' | 'admin' | 'research_assistant' | 'participant';
 export type Action = 'create' | 'read' | 'update' | 'delete' | 'exclude';
 export type Resource = 'groups' | 'assignments' | 'users' | 'admins' | 'tasks';
+
+// Nested resources are keyed by sub-resource; flat resources are plain action lists.
+export type GroupSubResource = 'sites' | 'schools' | 'classes' | 'cohorts';
+export type AdminSubResource = 'site_admin' | 'admin' | 'research_assistant' | 'super_admin';
+export type SubResource = GroupSubResource | AdminSubResource;
 
 export interface UserRole {
   siteId: string;
@@ -24,47 +29,61 @@ export interface User {
   roles: UserRole[];
 }
 
+export type NestedPermissions<T extends string> = { [subResource in T]: Action[] };
+export type FlatPermissions = Action[];
+
 export interface PermissionMatrix {
   [role: string]: {
-    [resource: string]: Action[];
+    groups: NestedPermissions<GroupSubResource>;
+    admins: NestedPermissions<AdminSubResource>;
+    assignments: FlatPermissions;
+    users: FlatPermissions;
+    tasks: FlatPermissions;
   };
 }
 ```
 
+**Note**: `groups` and `admins` are nested resources (`NESTED_RESOURCES`) and require a `subResource` on every check; `assignments`, `users`, and `tasks` are flat (`FLAT_RESOURCES`).
+
 ### Main Service (`src/services/permissionService.ts`)
 
-**Singleton pattern with caching capabilities**
+**Instantiated per use (not a singleton), with optional caching and logging**
 
 #### Core Methods:
-- `constructor(cacheService?)` - Accept optional cache service instance
-- `loadPermissions(matrix, version)` - Load and validate permission matrix
-- `canPerformSiteAction(user, siteId, resource, action)` - Main permission check
-- `canPerformGlobalAction(user, resource, action)` - Super admin only
+- `constructor(cacheService?, loggingConfig?, sink?)` - Optional cache service, logging mode config, and permission-event sink
+- `loadPermissions(document)` - Validate and load a `PermissionDocument` (`{ permissions, version, updatedAt }`); returns `{ success, errors, warnings }`
+- `canPerformSiteAction(user, siteId, resource, action, subResource?)` - Main permission check
+- `canPerformGlobalAction(user, resource, action, subResource?)` - Super admin only
 - `getUserSiteRole(user, siteId)` - Get user's role at specific site
 - `hasMinimumRole(userRole, requiredRole)` - Role hierarchy check
 - `getSitesWithMinRole(user, minRole)` - Find sites where user has minimum role
 - `getAccessibleResources(user, siteId, action)` - Get all resources user can perform action on
+- `getAccessibleGroupSubResources(user, siteId, action)` / `getAccessibleAdminSubResources(user, siteId, action)` - Sub-resource variants for nested resources
+- `getRolePermissions(role)` / `roleHasPermission(role, resource, action, subResource?)` - Inspect the matrix directly by role
 - `bulkPermissionCheck(user, siteId, checks)` - Check multiple permissions at once
 
 ### Caching Layer (`src/services/cacheService.ts`)
 
 **Exported for external instantiation**
 
-- In-memory cache with TTL (1 hour for backend, session-based for frontend)
-- Cache key: `${userId}-${siteId}` for permission results
+- In-memory cache with TTL (default 1 hour; configurable via constructor) and a background cleanup timer
+- Cache keys are built via helpers, e.g. permission keys are `${userId}-${siteId}-${resource}-${action}` (with `-${subResource}-` inserted for nested resources)
 - Methods:
-  - `get(key)` - Retrieve cached value
-  - `set(key, value, ttl?)` - Store with optional TTL
+  - `get(key)` - Retrieve cached value (returns `null` if missing/expired)
+  - `set(key, value, options?)` - Store with optional `{ ttl }`
+  - `has(key)` / `size()` - Inspect cache state
   - `clear()` - Clear all cache
   - `clearUser(userId)` - Clear specific user's cache
+  - `generatePermissionKey` / `generateUserRoleKey` / `generateBulkPermissionKey` - Key builders
+  - `destroy()` - Stop the cleanup timer and clear all data
 - **Cloud Functions**: Instantiate at module level for container persistence
 - **Frontend**: Instantiate in application for session-based caching
 
 ### Version Compatibility (`src/utils/versionHandler.ts`)
 
-- Handle permission matrix format changes
-- Migration logic for old formats
-- Backward compatibility support
+- Current version is `1.1.0`; `SUPPORTED_VERSIONS` and `COMPATIBLE_VERSIONS` currently list only `1.1.0`
+- `processPermissionDocument` validates the document, checks compatibility, and migrates when a compatible-but-unsupported version is loaded
+- Migration switch is scaffolded for future formats; no legacy format migration exists yet
 
 ## Role System
 
@@ -75,13 +94,31 @@ participant < research_assistant < admin < site_admin < super_admin
 
 ### Role Permissions Matrix
 
-| Action | Super Admin | Site Admin | Admin | Research Assistant | Participant |
-|--------|-------------|------------|-------|-------------------|-------------|
-| Groups | CRUDE | CRUDE | CRUD | R | - |
+Source of truth: `DEFAULT_PERMISSION_MATRIX` in `src/types/constants.ts`. The nested resources (`groups`, `admins`) vary by sub-resource, so they are broken out separately below.
+
+**Flat resources**
+
+| Resource | Super Admin | Site Admin | Admin | Research Assistant | Participant |
+|----------|-------------|------------|-------|--------------------|-------------|
 | Assignments | CRUDE | CRUDE | CRUD | R | - |
-| Users | CRUDE | CRUDE | CRUD | CR | - |
-| Admins | CRUDE | CRUDE | R | R | - |
-| Tasks | CRUDE | CRUDE | E | R | - |
+| Users | CRUDE | CRUDE | CRU | CR | - |
+| Tasks | CRUDE | CRUDE | R | R | - |
+
+**Groups** (sub-resources: sites, schools, classes, cohorts)
+
+| Sub-resource | Super Admin | Site Admin | Admin | Research Assistant | Participant |
+|--------------|-------------|------------|-------|--------------------|-------------|
+| sites | CRUDE | RU | RU | R | - |
+| schools / classes / cohorts | CRUDE | CRUDE | RUD | R | - |
+
+**Admins** (sub-resources by role tier; `exclude` never applies)
+
+| Sub-resource | Super Admin | Site Admin | Admin | Research Assistant | Participant |
+|--------------|-------------|------------|-------|--------------------|-------------|
+| site_admin | CRUD | CR | R | R | - |
+| admin | CRUD | CRUDE | R | R | - |
+| research_assistant | CRUD | CRUD | CR | R | - |
+| super_admin | CRUD | - | - | - | - |
 
 *C = Create, R = Read, U = Update, D = Delete, E = Exclude*
 
@@ -112,23 +149,26 @@ participant < research_assistant < admin < site_admin < super_admin
 {
   "permissions": {
     "super_admin": {
-      "groups": ["create", "read", "update", "delete", "exclude"],
+      "groups": {
+        "sites": ["create", "read", "update", "delete", "exclude"],
+        "schools": ["create", "read", "update", "delete", "exclude"],
+        "classes": ["create", "read", "update", "delete", "exclude"],
+        "cohorts": ["create", "read", "update", "delete", "exclude"]
+      },
       "assignments": ["create", "read", "update", "delete", "exclude"],
       "users": ["create", "read", "update", "delete", "exclude"],
-      "admins": ["create", "read", "update", "delete", "exclude"],
+      "admins": {
+        "site_admin": ["create", "read", "update", "delete"],
+        "admin": ["create", "read", "update", "delete"],
+        "research_assistant": ["create", "read", "update", "delete"],
+        "super_admin": ["create", "read", "update", "delete"]
+      },
       "tasks": ["create", "read", "update", "delete", "exclude"]
     },
-    "site_admin": {
-      "groups": ["create", "read", "update", "delete", "exclude"],
-      "assignments": ["create", "read", "update", "delete", "exclude"],
-      "users": ["create", "read", "update", "delete", "exclude"],
-      "admins": ["create", "read", "update", "delete"],
-      "tasks": ["create", "read", "update", "delete", "exclude"]
-    },
-    // ... other roles
+    // ... other roles (see DEFAULT_PERMISSION_MATRIX)
   },
   "updatedAt": "2025-07-18T10:00:00Z",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
 ```
 
@@ -156,9 +196,11 @@ const isSuperAdmin = user.roles.some(r => r.role === 'super_admin');
 ## Export Structure (`src/index.ts`)
 
 ```typescript
-export * from './types/permissions.js';
-export { PermissionService } from './services/permissionService.js';
 export { CacheService } from './services/cacheService.js';
+export { PermissionService } from './services/permissionService.js';
+export { VersionHandler } from './utils/versionHandler.js';
+// Plus named constant exports (ROLES, RESOURCES, ACTIONS, DEFAULT_PERMISSION_MATRIX, ...)
+// and all public types from ./types/permissions.js and ./utils/versionHandler.js
 ```
 
 **Note**: No singleton instances exported - consumers instantiate as needed.
@@ -205,7 +247,7 @@ export const myFunction = async (req, res) => {
 
 ## Error Handling
 
-- Permissions validation handled outside the service (via Zod)
+- Document and matrix validation is handled in-package by `VersionHandler` (no Zod or other runtime schema dependency; `firebase` is the only runtime dependency). `loadPermissions` runs `VersionHandler.processPermissionDocument`, which validates structure, checks version compatibility, and migrates when required.
 - Service returns false for invalid/missing data (fail closed)
 - Console warnings for debugging when permissions not loaded
 
