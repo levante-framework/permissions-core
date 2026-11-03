@@ -6,7 +6,7 @@ import type { CacheEntry, CacheOptions } from '../types/permissions.js';
  */
 export class CacheService {
   private cache = new Map<string, CacheEntry>();
-  private cleanupInterval: NodeJS.Timeout | null = null;
+  private cleanupInterval: ReturnType<typeof setInterval> | null = null;
   private readonly defaultTtl: number;
 
   /**
