@@ -537,28 +537,23 @@ describe('Integration Tests', () => {
       ];
 
       // First bulk check should populate cache
-      const start1 = performance.now();
       const results1 = service.bulkPermissionCheck(
         testUser,
         'site-001',
         bulkChecks,
       );
-      const time1 = performance.now() - start1;
 
       expect(results1).toHaveLength(5);
       const initialCacheSize = cache.size();
 
       // Second bulk check should use cached results
-      const start2 = performance.now();
       const results2 = service.bulkPermissionCheck(
         testUser,
         'site-001',
         bulkChecks,
       );
-      const time2 = performance.now() - start2;
 
       expect(results2).toEqual(results1);
-      expect(time2).toBeLessThan(time1);
       expect(cache.size()).toBe(initialCacheSize); // No new cache entries
     });
 

@@ -247,7 +247,7 @@ export const myFunction = async (req, res) => {
 
 ## Error Handling
 
-- Document and matrix validation is handled in-package by `VersionHandler` (no Zod or other runtime schema dependency; `firebase` is the only runtime dependency). `loadPermissions` runs `VersionHandler.processPermissionDocument`, which validates structure, checks version compatibility, and migrates when required.
+- Document and matrix validation is handled in-package by `VersionHandler` (no Zod or other runtime schema dependency; the package has no runtime dependencies). `loadPermissions` runs `VersionHandler.processPermissionDocument`, which validates structure, checks version compatibility, and migrates when required.
 - Service returns false for invalid/missing data (fail closed)
 - Console warnings for debugging when permissions not loaded
 
